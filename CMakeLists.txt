@@ -3,7 +3,6 @@ cmake_minimum_required(VERSION 3.10)
 project(MyProject)
 
 # Find MPI
-set(MPI_Fortran_COMPILER "/usr/local/bin/mpifort")
 find_package(MPI REQUIRED COMPONENTS CXX)
 
 # Add MPI compiler flags
