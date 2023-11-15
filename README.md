@@ -1,3 +1,5 @@
+## Compile guide adapted from nova++
+
 # Clone
 
 * `git clone --recurse-submodules ssh://git@gitlab.erc-atmo.eu:30000/remi.bourgeois/heat_equation.git` `
@@ -18,7 +20,7 @@ cmake -DCMAKE_INSTALL_PREFIX=$PWD/../../install_pdi -DUSE_HDF5=SYSTEM -DBUILD_HD
 * `make install`
 * `unset PDI_DIR`
 * `. ../../install_pdi/share/pdi/env.bash`
-
+* `cd heat_diffusion/`
 # Else, just re-load PDI
 * `. "path_to_pdi_install/share/pdi/env.bash`
 
