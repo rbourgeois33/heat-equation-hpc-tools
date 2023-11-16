@@ -21,8 +21,10 @@ cmake -DCMAKE_INSTALL_PREFIX=$PWD/../../install_pdi -DUSE_HDF5=SYSTEM -DBUILD_HD
 * `unset PDI_DIR`
 * `. ../../install_pdi/share/pdi/env.bash`
 * `cd heat_diffusion/`
+
 # Else, just re-load PDI
 * `. path_to_pdi_install/share/pdi/env.bash`
+* `. /gpfs/users/bourgeoisr/expe_heat_equation/heat_equation/vendor/install_pdi/share/pdi/env.bash`
 
 # Compile code (ruche, A100)
 
@@ -37,3 +39,19 @@ cmake -DCMAKE_INSTALL_PREFIX=$PWD/../../install_pdi -DUSE_HDF5=SYSTEM -DBUILD_HD
 * `cd build`
 * `cmake -DBUILD_TESTING=OFF -DCMAKE_BUILD_TYPE=Release -DKokkos_ENABLE_CUDA=ON -DKokkos_ARCH_VOLTA70=ON ..`
 * `make -j 16`
+
+# Compile code (ruche, P100)
+
+* `mkdir build`
+* `cd build`
+* `cmake -DBUILD_TESTING=OFF -DCMAKE_BUILD_TYPE=Release -DKokkos_ENABLE_CUDA=ON -DKokkos_ARCH_PASCAL60=ON ..`
+* `make -j 16`
+
+# Compile code (ruche, CPU, openMP)
+
+* `mkdir build`
+* `cd build`
+* `cmake -DBUILD_TESTING=OFF -DCMAKE_BUILD_TYPE=Release -DKokkos_ENABLE_CUDA=OFF -DKokkos_ENABLE_OPENMP=ON ..`
+* `make -j 16`
+
+

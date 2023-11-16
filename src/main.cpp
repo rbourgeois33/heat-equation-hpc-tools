@@ -3,6 +3,9 @@
 #include <Kokkos_Core.hpp>
 #include <iostream>
 
+#include "heat_equation.hpp"
+
+
 int main(int argc, char** argv) 
 {
   // Initialize MPI and Kokkos
@@ -18,10 +21,12 @@ int main(int argc, char** argv)
   MPI_Comm_size(MPI_COMM_WORLD, &mpi_size);
   printf("Rank %d out of %d\n", mpi_rank, mpi_size);
 
+  //Run simulation
+  heat_equation(argc, argv);
+
   //Finalize Kokkos and MPI
   Kokkos::finalize();
   MPI_Finalize();
-
 
   return 0;
 }
