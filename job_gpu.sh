@@ -1,14 +1,11 @@
 #!/bin/bash
-#SBATCH --job-name=sgpu
+#SBATCH --job-name=out_heat
 #SBATCH --output=%x.o%j
-#SBATCH --exclusive
 #SBATCH --time=01:00:00 # (see available partitions)
-#SBATCH --partition=gpu   
+#SBATCH --partition=gpua100   
 #SBATCH --nodes=1
-#SBATCH --gres=gpu:2
-#SBATCH --ntasks=2
-#SBATCH --ntasks-per-node=2
-#SBATCH --cpus-per-task=1
+#SBATCH --gres=gpu:1
+#SBATCH --ntasks=1
 
 # To clean and load modules defined at the compile and link phases
 module purge
@@ -22,4 +19,4 @@ set -x
 cd ${SLURM_SUBMIT_DIR}
 
 # execution
-pdirun -n 2 ./my_app
+pdirun srun ./my_app
