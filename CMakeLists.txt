@@ -16,10 +16,6 @@ set(PDI_INSTALL_PATH "${PROJECT_SOURCE_DIR}/vendor/install_pdi")
 # Add Kokkos
 add_subdirectory(${KOKKOS_PATH})
 
-# Comment out these lines as PDI is already installed
-# set(BUILD_SHARED_LIBS ON)
-# add_subdirectory(${PDI_PATH})
-
 # Create executable
 add_executable(my_app src/main.cpp)
 
