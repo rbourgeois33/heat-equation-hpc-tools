@@ -10,7 +10,6 @@ add_definitions(${MPI_CXX_COMPILE_FLAGS})
 
 # Specify the path to the external libraries
 set(KOKKOS_PATH "${PROJECT_SOURCE_DIR}/vendor/kokkos")
-# Path to the installed PDI
 set(PDI_INSTALL_PATH "${PROJECT_SOURCE_DIR}/vendor/install_pdi")
 
 # Add Kokkos
@@ -28,5 +27,8 @@ include_directories(${PDI_INSTALL_PATH}/include)
 # Find the PDI library
 find_library(PDI_LIBRARY NAMES pdi PATHS ${PDI_INSTALL_PATH}/lib)
 
-# Link libraries with MPI and PDI
-target_link_libraries(my_app ${MPI_CXX_LIBRARIES} ${MPI_CXX_LINK_FLAGS} Kokkos::kokkos ${PDI_LIBRARY})
+# Find the Paraconf library
+find_library(PARACONF_LIBRARY NAMES paraconf PATHS ${PDI_INSTALL_PATH}/lib64)
+
+# Link libraries with MPI, PDI, and Paraconf
+target_link_libraries(my_app ${MPI_CXX_LIBRARIES} ${MPI_CXX_LINK_FLAGS} Kokkos::kokkos ${PDI_LIBRARY} ${PARACONF_LIBRARY})

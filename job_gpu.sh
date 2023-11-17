@@ -1,7 +1,7 @@
 #!/bin/bash
 #SBATCH --job-name=out_heat
 #SBATCH --output=%x.o%j
-#SBATCH --time=01:00:00 # (see available partitions)
+#SBATCH --time=00:01:00 # (see available partitions)
 #SBATCH --partition=gpua100   
 #SBATCH --nodes=1
 #SBATCH --gres=gpu:1

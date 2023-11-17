@@ -1,0 +1,5 @@
+# only the following config is passed to PDI
+pdi:
+  metadata: # type of small values for which PDI keeps a copy
+    mpi_rank: { size: 1, type: int } # number of processes in each dimension
+    mpi_size: { size: 1, type: int } # coordinate of the current process
