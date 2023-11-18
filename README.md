@@ -31,19 +31,20 @@ cmake -DCMAKE_INSTALL_PREFIX=$PWD/../../install_pdi -DUSE_HDF5=SYSTEM -DBUILD_HD
 * `mkdir build`
 * `cd build`
 
-# 4: Configure cmake, ruche, A100
+# 4: Configure cmake 
+# Ruche, A100:
 
 * `cmake -DBUILD_TESTING=OFF -DCMAKE_BUILD_TYPE=Release -DKokkos_ENABLE_CUDA=ON -DKokkos_ARCH_AMPERE80=ON ..`
 
-# Ruche, V100
+# Ruche, V100:
 
 * `cmake -DBUILD_TESTING=OFF -DCMAKE_BUILD_TYPE=Release -DKokkos_ENABLE_CUDA=ON -DKokkos_ARCH_VOLTA70=ON ..`
 
-# Ruche, P100
+# Ruche, P100:
 
 * `cmake -DBUILD_TESTING=OFF -DCMAKE_BUILD_TYPE=Release -DKokkos_ENABLE_CUDA=ON -DKokkos_ARCH_PASCAL60=ON ..`
 
-# Ruche, CPU, openMP
+# Ruche, CPU, openMP:
 
 * `cmake -DBUILD_TESTING=OFF -DCMAKE_BUILD_TYPE=Release -DKokkos_ENABLE_CUDA=OFF -DKokkos_ENABLE_OPENMP=ON ..`
 
