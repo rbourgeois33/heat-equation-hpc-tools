@@ -137,6 +137,8 @@ void heat_equation(int argc, char* argv[], MPI_Comm main_comm, PC_tree_t conf)
     //Print simulation information
     if (mpi_rank==0)
     {
+    Kokkos::print_configuration(std::cout);
+
     std::cout << "------------ Simulation Information --------------"  << std::endl;
     std::cout << "Diffusion coefficient: " << kappa << std::endl;
     std::cout << "Cell size: " << dx << std::endl;
@@ -165,9 +167,6 @@ void heat_equation(int argc, char* argv[], MPI_Comm main_comm, PC_tree_t conf)
     //Send to PDI
     int dsize[2]={size_x, size_y};
 
-    std::cout<<dsize[0]<<" "<<dsize[1]<< std::endl;
-
-    Kokkos::deep_copy(U_host,U);
 
     PDI_multi_expose("init_PDI",
                     "mpi_rank", &mpi_rank, PDI_OUT,
@@ -175,9 +174,12 @@ void heat_equation(int argc, char* argv[], MPI_Comm main_comm, PC_tree_t conf)
                     "dsize", &dsize, PDI_OUT
                     );
 
-    //PDI_multi_expose("write_data",
-    //                 "main_field", U_host.data(), PDI_OUT
-    //                 );
+    double main_field[size_x][size_y];
+    Kokkos::deep_copy(U_host,U);
+    
+    PDI_multi_expose("write_data",
+                     "main_field", main_field, PDI_OUT
+                     );
 
     //Set time and n to 0 
     double t = 0.0;

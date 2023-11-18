@@ -19,4 +19,4 @@ set -x
 cd ${SLURM_SUBMIT_DIR}
 
 # execution
-pdirun srun ./my_app
+pdirun srun ./my_app ../io.yml
