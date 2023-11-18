@@ -27,6 +27,7 @@ cmake -DCMAKE_INSTALL_PREFIX=$PWD/../../install_pdi -DUSE_HDF5=SYSTEM -DBUILD_HD
 * `. /gpfs/users/bourgeoisr/expe_heat_equation/heat_equation/vendor/install_pdi/share/pdi/env.bash`
 
 # 3: Create build folder
+* `cd heat_equation/`
 * `mkdir build`
 * `cd build`
 
@@ -46,7 +47,10 @@ cmake -DCMAKE_INSTALL_PREFIX=$PWD/../../install_pdi -DUSE_HDF5=SYSTEM -DBUILD_HD
 
 * `cmake -DBUILD_TESTING=OFF -DCMAKE_BUILD_TYPE=Release -DKokkos_ENABLE_CUDA=OFF -DKokkos_ENABLE_OPENMP=ON ..`
 
-# 4 Compile code
+# 5: Compile code
 * `make -j 16`
+
+# 6: Run the code
+* `Use the slurm scripts in heat_equation/ to launch jobs`
 
 
