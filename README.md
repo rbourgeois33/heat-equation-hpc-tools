@@ -1,14 +1,14 @@
-## Compile guide adapted from nova++
+## Guide adapted from nova++
 
-# Clone
+# 0: Clone
 
 * `git clone --recurse-submodules ssh://git@gitlab.erc-atmo.eu:30000/remi.bourgeois/heat_equation.git` `
 
-# Load libraries
+# 1: Load libraries
 
 * `module load gcc/11.2.0/gcc-4.8.5 hdf5/1.10.7/gcc-11.2.0-openmpi openmpi/4.1.1/gcc-11.2.0 cuda/11.7.0/gcc-11.2.0 cmake/3.21.4/gcc-11.2.0`
 
-# First compilation ever ? Compile PDI
+# 2: Load PDI, First compilation ever ? Compile PDI
 
 * `cd heat_equation/vendor/pdi`
 * `mkdir build`
@@ -26,32 +26,27 @@ cmake -DCMAKE_INSTALL_PREFIX=$PWD/../../install_pdi -DUSE_HDF5=SYSTEM -DBUILD_HD
 * `. path_to_pdi_install/share/pdi/env.bash`
 * `. /gpfs/users/bourgeoisr/expe_heat_equation/heat_equation/vendor/install_pdi/share/pdi/env.bash`
 
-# Compile code (ruche, A100)
-
+# 3: Create build folder
 * `mkdir build`
 * `cd build`
+
+# 4: Configure cmake, ruche, A100
+
 * `cmake -DBUILD_TESTING=OFF -DCMAKE_BUILD_TYPE=Release -DKokkos_ENABLE_CUDA=ON -DKokkos_ARCH_AMPERE80=ON ..`
-* `make -j 16`
 
-# Compile code (ruche, V100)
+# Ruche, V100
 
-* `mkdir build`
-* `cd build`
 * `cmake -DBUILD_TESTING=OFF -DCMAKE_BUILD_TYPE=Release -DKokkos_ENABLE_CUDA=ON -DKokkos_ARCH_VOLTA70=ON ..`
-* `make -j 16`
 
-# Compile code (ruche, P100)
+# Ruche, P100
 
-* `mkdir build`
-* `cd build`
 * `cmake -DBUILD_TESTING=OFF -DCMAKE_BUILD_TYPE=Release -DKokkos_ENABLE_CUDA=ON -DKokkos_ARCH_PASCAL60=ON ..`
-* `make -j 16`
 
-# Compile code (ruche, CPU, openMP)
+# Ruche, CPU, openMP
 
-* `mkdir build`
-* `cd build`
 * `cmake -DBUILD_TESTING=OFF -DCMAKE_BUILD_TYPE=Release -DKokkos_ENABLE_CUDA=OFF -DKokkos_ENABLE_OPENMP=ON ..`
+
+# 4 Compile code
 * `make -j 16`
 
 
