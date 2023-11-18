@@ -84,8 +84,13 @@ void BoundaryCondition(Kokkos::View<double**>& U, int i0, int j0, int iend, int 
     );
 }
 
-void heat_equation(int argc, char* argv[])
-{
+void heat_equation(int argc, char* argv[], MPI_Comm main_comm, PC_tree_t conf)
+{   
+
+    // Get MPI info
+    int mpi_rank; MPI_Comm_rank(main_comm, &mpi_rank);
+	int mpi_size; MPI_Comm_size(main_comm, &mpi_size);
+
     //Domain size, final time and diffusion coefficient
     double Lx = 1.0;
     double Ly = 1.0;
@@ -98,7 +103,6 @@ void heat_equation(int argc, char* argv[])
     int nx = 1024;
     int ny = 1024;
 
-    int ngc = 1; 
     int niter = 100;
 
     //Cell size
@@ -111,10 +115,9 @@ void heat_equation(int argc, char* argv[])
     double dt = cfl/(inv_dt_x + inv_dt_y);
 
     //Size of the arrays
+    int ngc = 1; 
     int size_x = nx + 2*ngc;
     int size_y = ny + 2*ngc;
-
-    //Start and end of the arrays
     int start_x = 0;
     int start_y = 0;
     int end_x = size_x-1;
@@ -132,7 +135,8 @@ void heat_equation(int argc, char* argv[])
     int host_mem_size = U_mem_size;
 
     //Print simulation information
-
+    if (mpi_rank==0)
+    {
     std::cout << "------------ Simulation Information --------------"  << std::endl;
     std::cout << "Diffusion coefficient: " << kappa << std::endl;
     std::cout << "Cell size: " << dx << std::endl;
@@ -147,16 +151,33 @@ void heat_equation(int argc, char* argv[])
     std::cout << "Allocation on device: " << device_mem_size/1e6 << " MB" << std::endl;
     std::cout << "Allocation on host: " << host_mem_size/1e6 << " MB" << std::endl;
     std::cout << "--------------------------------------------------"  << std::endl;
-
+    }
     //Allocate the arrays
     Kokkos::View<double**> U ("Solution U on device", size_x, size_y);
     Kokkos::View<double**> U_("Intermediate Solution U on device", size_x, size_y);
-
+    
     // Declare mirror array of U on host
     auto U_host = Kokkos::create_mirror(U);
 
     //Initialisation
     Initialisation(U, start_x, start_y, end_x, end_y, dx, dy);
+
+    //Send to PDI
+    int dsize[2]={size_x, size_y};
+
+    std::cout<<dsize[0]<<" "<<dsize[1]<< std::endl;
+
+    Kokkos::deep_copy(U_host,U);
+
+    PDI_multi_expose("init_PDI",
+                    "mpi_rank", &mpi_rank, PDI_OUT,
+                    "mpi_size", &mpi_size, PDI_OUT,
+                    "dsize", &dsize, PDI_OUT
+                    );
+
+    //PDI_multi_expose("write_data",
+    //                 "main_field", U_host.data(), PDI_OUT
+    //                 );
 
     //Set time and n to 0 
     double t = 0.0;
@@ -191,6 +212,8 @@ void heat_equation(int argc, char* argv[])
     double elapsed_time = timer.seconds();
 
     //print info and reason for stopping
+    if (mpi_rank==0)
+    {
     if (t >= Tend)
     {
         printf("Simulation finished because t >= Tend\n");
@@ -200,7 +223,7 @@ void heat_equation(int argc, char* argv[])
         printf("Simulation finished because nstep >= niter\n");
     }
     printf("Time step: %d, Time: %f\n", nstep, t);
-    
     //print performances
     print_perf(elapsed_time, nx, ny, nstep);
+    }
 }

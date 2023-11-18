@@ -27,7 +27,7 @@ int main(int argc, char** argv)
   PDI_init(PC_get(conf, ".pdi"));
   Kokkos::initialize(argc, argv);
 
-  //Get MPI values
+  //Get MPI values and send to PDI
 	MPI_Comm main_comm = MPI_COMM_WORLD;
   int mpi_rank; MPI_Comm_rank(main_comm, &mpi_rank);
 	int mpi_size; MPI_Comm_size(main_comm, &mpi_size);
@@ -38,13 +38,8 @@ int main(int argc, char** argv)
     Kokkos::print_configuration(std::cout);
   }
 
-  printf("Rank %d out of %d\n", mpi_rank, mpi_size);
-
   //Run simulation
-  //heat_equation(argc, argv);
-
-	PDI_expose("mpi_rank", &mpi_rank, PDI_OUT);
-	PDI_expose("mpi_size", &mpi_size, PDI_OUT);
+  heat_equation(argc, argv, main_comm, conf);
 
   //Finalize Kokkos, PDI and MPI
   Kokkos::finalize();
