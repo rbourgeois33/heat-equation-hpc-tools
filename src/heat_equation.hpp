@@ -84,6 +84,20 @@ void BoundaryCondition(Kokkos::View<double**>& U, int i0, int j0, int iend, int 
     );
 }
 
+void write_solution_to_file(Kokkos::View<double**>::HostMirror& U_host, Kokkos::View<double**>& U)
+{   
+    // Copy the view to the host mirror
+    Kokkos::deep_copy(U_host, U);
+
+    // Expose the solution
+    PDI_multi_expose("write_data",
+                 "main_field", U_host.data(), PDI_OUT,
+                  NULL);
+
+    // Print writing information
+    std::cout << "\n ... " << "Solution written to file: " << " ...\n "<<std::endl;
+}
+
 void heat_equation(int argc, char* argv[], MPI_Comm main_comm, PC_tree_t conf)
 {   
 
@@ -134,6 +148,15 @@ void heat_equation(int argc, char* argv[], MPI_Comm main_comm, PC_tree_t conf)
     int device_mem_size = 2*U_mem_size;
     int host_mem_size = U_mem_size;
 
+    //Initialize PDI meta-data
+    PDI_multi_expose("init_PDI",
+                    "mpi_rank", &mpi_rank, PDI_OUT,
+                    "mpi_size", &mpi_size, PDI_OUT,
+                    "nx", &nx, PDI_OUT,
+                    "ny", &ny, PDI_OUT,
+                     NULL);
+
+
     //Print simulation information
     if (mpi_rank==0)
     {
@@ -164,21 +187,8 @@ void heat_equation(int argc, char* argv[], MPI_Comm main_comm, PC_tree_t conf)
     //Initialisation
     Initialisation(U, start_x, start_y, end_x, end_y, dx, dy);
 
-    //Send to PDI
-    int dsize[2]={size_x, size_y};
-
-    PDI_multi_expose("init_PDI",
-                    "mpi_rank", &mpi_rank, PDI_OUT,
-                    "mpi_size", &mpi_size, PDI_OUT,
-                    "dsize", &dsize, PDI_OUT,
-                     NULL);
-
-    Kokkos::deep_copy(U_host,U);
+    write_solution_to_file(U_host, U);
     
-    PDI_multi_expose("write_data",
-                     "main_field", U_host.data(), PDI_OUT,
-                      NULL);
-
     //Set time and n to 0 
     double t = 0.0;
     int nstep = 0;

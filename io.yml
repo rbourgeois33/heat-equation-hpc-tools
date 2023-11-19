@@ -1,9 +1,12 @@
 pdi:
   metadata: # type of small values for which PDI keeps a copy
-    dsize:  { size: 2, type: array, subtype: int } # local data size including ghosts/boundary
+     nx:   int
+     ny:   int
+     mpi_rank:   int
+     mpi_size:   int
 
   data: # type of values for which PDI does not keep a copy
-    main_field: { size: [ '$dsize[0]', '$dsize[1]' ], type: array, subtype: double }
+    main_field: { size: [ '$nx+2', '$ny+2' ], type: array, subtype: double }
   
   plugins:
     mpi:
@@ -14,10 +17,10 @@ pdi:
         data:
           type: array
           subtype: double
-          size: ['$dsize[0]', '$dsize[1]']
+          size: ['$nx', '$ny']
       write:
         main_field: # the name of the data to write
           dataset: data
           memory_selection:  # exclude ghosts from the data in memory
-            size:  ['$dsize[0]-1', '$dsize[1]-1']
-            start: [0, 0]
+            size:  ['$nx', '$ny']
+            start: [1, 1]
