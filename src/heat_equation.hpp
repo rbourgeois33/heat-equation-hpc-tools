@@ -22,19 +22,6 @@ void Initialisation(Kokkos::View<double**>& U, double dx, double dy, const Kokko
     );
 }
 
-void copy(Kokkos::View<double**>& U, Kokkos::View<double**>& U_, const Kokkos::MDRangePolicy<Kokkos::Rank<2>> &policy)
-{
-    Kokkos::parallel_for
-    (
-        "Copy", 
-        policy, 
-        KOKKOS_LAMBDA ( const int i , const int j )
-        {   
-            U_(i, j) = U(i, j) ;
-        }
-    );
-}
-
 void stencil_kernel(Kokkos::View<double**>& U, Kokkos::View<double**>& U_, double dx, double dy, double dt, double kappa, const Kokkos::MDRangePolicy<Kokkos::Rank<2>> &policy)
 {
     Kokkos::parallel_for
@@ -133,9 +120,8 @@ void heat_equation(int argc, char* argv[], MPI_Comm main_comm, PC_tree_t conf)
     int size_x = nx + 2*ngc;
     int size_y = ny + 2*ngc;
 
-    //Policies for looping over the whole array with ghost cell, or the solution only
-    Kokkos::MDRangePolicy<Kokkos::Rank<2>> array_policy({0  ,0  },{size_x    , size_y    });
-    Kokkos::MDRangePolicy<Kokkos::Rank<2>>   sol_policy({ngc,ngc},{size_x-ngc, size_y-ngc});
+    //Policies for looping over the whole solution, skipping ghost cells
+    Kokkos::MDRangePolicy<Kokkos::Rank<2>> policy({ngc,ngc},{size_x-ngc, size_y-ngc});
 
     //Compute memory required on host and device
     int U_mem_size = size_x*size_y*sizeof(double);
@@ -178,7 +164,7 @@ void heat_equation(int argc, char* argv[], MPI_Comm main_comm, PC_tree_t conf)
     auto U_host = Kokkos::create_mirror(U);
 
     //Initialisation
-    Initialisation(U, dx, dy, sol_policy);
+    Initialisation(U, dx, dy, policy);
 
     //Write solution
     write_solution_to_file(U_host,U);
@@ -199,8 +185,8 @@ void heat_equation(int argc, char* argv[], MPI_Comm main_comm, PC_tree_t conf)
         }
 
         BoundaryCondition(U, nx, ny);
-        copy(U, U_, array_policy);
-        stencil_kernel(U, U_, dx, dy, dt, kappa, sol_policy);
+        Kokkos::deep_copy(U_, U);
+        stencil_kernel(U, U_, dx, dy, dt, kappa, policy);
 
         //Update time and iteration number
         t = t + dt;

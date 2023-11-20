@@ -24,8 +24,10 @@ int main(int argc, char** argv)
   // Initialize MPI, PDI and Kokkos
   MPI_Init(&argc, &argv);
   MPI_Comm main_comm = MPI_COMM_WORLD;
+
   PC_tree_t conf = PC_parse_path(argv[1]);
   PDI_init(PC_get(conf, ".pdi"));
+
   Kokkos::initialize(argc, argv);
 
   //Run simulation
@@ -33,8 +35,10 @@ int main(int argc, char** argv)
 
   //Finalize Kokkos, PDI and MPI
   Kokkos::finalize();
+
   PC_tree_destroy(&conf);
   PDI_finalize();
+  
   MPI_Finalize();
 
   return 0;
