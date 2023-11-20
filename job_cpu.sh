@@ -1,12 +1,12 @@
 #!/bin/bash
 #SBATCH --job-name=out_heat
 #SBATCH --output=%x.o%j
-#SBATCH --time=00:01:00
-#SBATCH --ntasks=1
+#SBATCH --time=00:10:00
+#SBATCH --ntasks=9
 #SBATCH --nodes=1
-#SBATCH --ntasks-per-node=1
-#SBATCH --cpus-per-task=10
-#SBATCH --partition=cpu_med       # (see available partitions)
+#SBATCH --ntasks-per-node=9
+#SBATCH --cpus-per-task=1
+#SBATCH --partition=cpu_short     # (see available partitions)
 
 # To clean and to load the same modules at the compilation phases
 module purge

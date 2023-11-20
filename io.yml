@@ -1,9 +1,12 @@
 pdi:
   metadata: # type of small values for which PDI keeps a copy
-     nx:   int
-     ny:   int
-     mpi_rank:   int
-     mpi_size:   int
+
+     nx: int #Domain size per proc
+     ny: int #Domain size per proc
+
+     mpi_max_rank: { size: 2, type: array, subtype: int } #MPI domain decomposition
+     mpi_coords:   { size: 2, type: array, subtype: int } #Coordinate of the current MPI_process
+
      time: double
      nwrite: int
 
@@ -20,11 +23,15 @@ pdi:
         data:
           type: array
           subtype: double
-          size: ['$nx', '$ny']
+          size: ['$nx*$mpi_max_rank[0]', '$ny*$mpi_max_rank[1]']
       write:
         main_field: # the name of the data to write
           dataset: data
           memory_selection:  # exclude ghosts from the data in memory
             size:  ['$nx', '$ny']
             start: [1, 1]
+          dataset_selection: # only write into a single slice in time
+            size:  ['$nx', '$ny']
+            start: ['$nx*$mpi_coords[0]', '$ny*$mpi_coords[1]']
+
         time:

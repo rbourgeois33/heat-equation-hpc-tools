@@ -1,5 +1,4 @@
-#include <fstream>
-#include <iostream>
+#include "mpi.hpp"
 
 KOKKOS_INLINE_FUNCTION
 double initial_condition(double x, double y)
@@ -13,7 +12,7 @@ double initial_condition(double x, double y)
 }
 
 //Initialize the view U with the initial condition function above
-void Initialisation(Kokkos::View<double**>& U, const double dx, const double dy, const Kokkos::MDRangePolicy<Kokkos::Rank<2>> &policy)
+void Initialisation(Kokkos::View<double**>& U, const double dx, const double dy, const int nx, const int ny, const int mpi_coords[2], const Kokkos::MDRangePolicy<Kokkos::Rank<2>> &policy)
 {
     Kokkos::parallel_for
     (
@@ -21,8 +20,8 @@ void Initialisation(Kokkos::View<double**>& U, const double dx, const double dy,
         policy, 
         KOKKOS_LAMBDA ( const int i , const int j )
         {   
-            double x_i=double(i)*dx;
-            double y_j=double(j)*dy;
+            double x_i=double(i + mpi_coords[0]*nx)*dx;
+            double y_j=double(j + mpi_coords[1]*ny)*dy;
             U(i, j) = initial_condition(x_i, y_j) ;
         }
     );
@@ -93,18 +92,14 @@ void write_solution_to_file(const Kokkos::View<double**>::HostMirror& U_host, co
                  "main_field", U_host.data(), PDI_OUT,
                   NULL);
 
+    //Increment writing counter
     nwrite=nwrite+1;
-    // Print writing information
-    std::cout << "\n ... " << "Solution written to file" << " ...\n "<<std::endl;
 }
 
 //Main loop
 void heat_equation(int argc, char* argv[], const MPI_Comm main_comm, const PC_tree_t conf)
 {   
-
-    // Get MPI info
-    int mpi_rank; MPI_Comm_rank(main_comm, &mpi_rank);
-    int mpi_size; MPI_Comm_size(main_comm, &mpi_size);
+    /// ---- Tunable parameters ----
 
     //Domain size, final time and diffusion coefficient
     const double Lx = 1.0;
@@ -112,17 +107,24 @@ void heat_equation(int argc, char* argv[], const MPI_Comm main_comm, const PC_tr
     const double Tend = 1;
     const double kappa = 0.1;
 
-    //CFL number, number of cells and max number of iterations
+    //CFL number, number of cells per proc, mpi decomposition and max number of iter
     const double cfl = 0.9;
 
-    const int nx = 256;
-    const int ny = 256;
+    const int nx = 128;
+    const int ny = 128;
+    int mpi_max_rank[2]={3,3};
 
-    const int niter = 9999999;
+    const int nmax = 9999999;  
+
+    /// ---- Untunable parameters ----
+
+    //Number of cells in the whole domain
+    const int Nx = nx*mpi_max_rank[0];
+    const int Ny = ny*mpi_max_rank[1];
 
     //Cell size
-    const double dx = Lx/nx;
-    const double dy = Ly/ny;
+    const double dx = Lx/Nx;
+    const double dy = Ly/Ny;
 
     //time step calculated from the diffusion coefficient
     const double inv_dt_x = 1.0/(0.5*dx*dx/kappa);
@@ -145,10 +147,15 @@ void heat_equation(int argc, char* argv[], const MPI_Comm main_comm, const PC_tr
     const int device_mem_size = 2*U_mem_size;
     const int host_mem_size = U_mem_size;
 
-    //Initialize PDI meta-data
+    // Get MPI info and compute rank info (2D index and neighbors, see mpi.hpp)
+    int mpi_rank; MPI_Comm_rank(main_comm, &mpi_rank);
+    int mpi_size; MPI_Comm_size(main_comm, &mpi_size);
+    MPI_INFO mpi_info(mpi_rank, mpi_size, mpi_max_rank);
+
+    //Send meta-data to PDI
     PDI_multi_expose("init_PDI",
-                    "mpi_rank", &mpi_rank, PDI_OUT,
-                    "mpi_size", &mpi_size, PDI_OUT,
+                    "mpi_coords", &mpi_info.mpi_coords, PDI_OUT,
+                    "mpi_max_rank", &mpi_info.mpi_max_rank, PDI_OUT,
                     "nx", &nx, PDI_OUT,
                     "ny", &ny, PDI_OUT,
                      NULL);
@@ -162,17 +169,23 @@ void heat_equation(int argc, char* argv[], const MPI_Comm main_comm, const PC_tr
     std::cout << "Diffusion coefficient: " << kappa << std::endl;
     std::cout << "Cell size: " << dx << std::endl;
     std::cout << "Time step: " << dt << std::endl;
-    std::cout << "Number of cells: " << nx << " , "<< ny << std::endl;
-    std::cout << "Number of iterations: " << niter << std::endl;
+    std::cout << "Number of cells per proc: " << nx << " , "<< ny << std::endl;
+    std::cout << "Total of cells per proc: " << Nx << " , "<< Ny << std::endl;
+    std::cout << "Number of iterations: " << nmax << std::endl;
     std::cout << "Number of ghost cells: " << ngc << std::endl;
     std::cout << "CFL number: " << cfl << std::endl;
     std::cout << "Final time: " << Tend << std::endl;
     std::cout << "Domain size: " << Lx << " , " << Ly << std::endl;
-    std::cout << "Memory size of U: " << U_mem_size/1e6 << " MB" << std::endl;
-    std::cout << "Allocation on device: " << device_mem_size/1e6 << " MB" << std::endl;
-    std::cout << "Allocation on host: " << host_mem_size/1e6 << " MB" << std::endl;
+    std::cout << "Memory size of U, per proc: " << U_mem_size/1e6 << " MB" << std::endl;
+    std::cout << "Allocation on device, per proc: " << device_mem_size/1e6 << " MB" << std::endl;
+    std::cout << "Allocation on host, per proc: " << host_mem_size/1e6 << " MB" << std::endl;
     std::cout << "--------------------------------------------------"  << std::endl;
     }
+
+    // Print MPU info (see mpi.hpp)
+    MPI_Barrier(main_comm);
+    mpi_info.printDetails();
+    MPI_Barrier(main_comm);
 
     //Allocate the arrays
     Kokkos::View<double**> U ("Solution U on device", size_x, size_y);
@@ -182,7 +195,7 @@ void heat_equation(int argc, char* argv[], const MPI_Comm main_comm, const PC_tr
     auto U_host = Kokkos::create_mirror(U);
 
     //Initialisation
-    Initialisation(U, dx, dy, policy);
+    Initialisation(U, dx, dy, nx, ny, mpi_info.mpi_coords, policy);
 
     //Set time time and indexes to 0
     double time = 0.0;
@@ -194,7 +207,7 @@ void heat_equation(int argc, char* argv[], const MPI_Comm main_comm, const PC_tr
 
     //Loop over the time steps
     Kokkos::Timer timer;
-    while (time < Tend && nstep < niter)
+    while (time < Tend && nstep < nmax)
     {
         // if t+dt > Tend, reduce dt to reach Tend exactly
         if (time + dt > Tend)
@@ -216,8 +229,8 @@ void heat_equation(int argc, char* argv[], const MPI_Comm main_comm, const PC_tr
         nstep = nstep + 1;
 
         //Print progress information
-        if (nstep % 500 == 0)
-        {
+        if (nstep % 500 == 0 && mpi_rank==0)
+        {    
             printf("Time step: %d, Time: %f\n", nstep, time);
         }
 
@@ -240,9 +253,9 @@ void heat_equation(int argc, char* argv[], const MPI_Comm main_comm, const PC_tr
     {
         printf("Simulation finished because time >= Tend\n");
     }
-    else if (nstep >= niter)
+    else if (nstep >= nmax)
     {
-        printf("Simulation finished because nstep >= niter\n");
+        printf("Simulation finished because nstep >= nmax\n");
     }
     printf("Time step: %d, Time: %f\n", nstep, time);
     
