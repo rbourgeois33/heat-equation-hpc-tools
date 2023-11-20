@@ -104,7 +104,7 @@ void heat_equation(int argc, char* argv[], const MPI_Comm main_comm, const PC_tr
 
     // Get MPI info
     int mpi_rank; MPI_Comm_rank(main_comm, &mpi_rank);
-	int mpi_size; MPI_Comm_size(main_comm, &mpi_size);
+    int mpi_size; MPI_Comm_size(main_comm, &mpi_size);
 
     //Domain size, final time and diffusion coefficient
     const double Lx = 1.0;
@@ -130,7 +130,7 @@ void heat_equation(int argc, char* argv[], const MPI_Comm main_comm, const PC_tr
     double dt = cfl/(inv_dt_x + inv_dt_y); //Not const for time adjustment, but constant CFL
     
     //predicted amount of steps to progess 10 percents
-    const int ntot = std::floor(Tend/(10*dt));
+    const int freq_write = std::floor(Tend/(10*dt));
 
     //Size of the arrays
     const int ngc = 1; 
@@ -184,7 +184,7 @@ void heat_equation(int argc, char* argv[], const MPI_Comm main_comm, const PC_tr
     //Initialisation
     Initialisation(U, dx, dy, policy);
 
-    //Set time and n to 0 
+    //Set time time and indexes to 0
     double time = 0.0;
     int nstep = 0;
     int nwrite = 0;
@@ -222,7 +222,7 @@ void heat_equation(int argc, char* argv[], const MPI_Comm main_comm, const PC_tr
         }
 
         //Write solution every 10% of progression
-        if (nstep % ntot == 0)
+        if (nstep % freq_write == 0)
         {
             write_solution_to_file(U_host, U, nwrite, time);
         }
