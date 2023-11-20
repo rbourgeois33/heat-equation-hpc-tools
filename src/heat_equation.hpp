@@ -8,7 +8,7 @@ double initial_condition(double x, double y)
 }
 
 //Initialize the view U with the initial condition function above
-void Initialisation(Kokkos::View<double**>& U, double dx, double dy, const Kokkos::MDRangePolicy<Kokkos::Rank<2>> &policy)
+void Initialisation(Kokkos::View<double**>& U, const double dx, const double dy, const Kokkos::MDRangePolicy<Kokkos::Rank<2>> &policy)
 {
     Kokkos::parallel_for
     (
@@ -24,7 +24,7 @@ void Initialisation(Kokkos::View<double**>& U, double dx, double dy, const Kokko
 }
 
 //Apply a finite difference scheme on the view U, using the view U_
-void stencil_kernel(Kokkos::View<double**>& U, Kokkos::View<double**>& U_, double dx, double dy, double dt, double kappa, const Kokkos::MDRangePolicy<Kokkos::Rank<2>> &policy)
+void stencil_kernel(Kokkos::View<double**>& U, const Kokkos::View<double**>& U_, const double dx, const double dy, const double dt, const double kappa, const Kokkos::MDRangePolicy<Kokkos::Rank<2>> &policy)
 {
     Kokkos::parallel_for
     (
@@ -38,7 +38,7 @@ void stencil_kernel(Kokkos::View<double**>& U, Kokkos::View<double**>& U_, doubl
 }
 
 //Print performance data
-void print_perf(double elapsed_time, int nx, int ny, int nstep)
+void print_perf(const double elapsed_time, const int nx, const int ny, const int nstep)
 {
     //Calculate performances
     int num_threads = Kokkos::DefaultExecutionSpace::concurrency();
@@ -50,7 +50,7 @@ void print_perf(double elapsed_time, int nx, int ny, int nstep)
 }
 
 //Apply boundary condition on view U
-void BoundaryCondition(Kokkos::View<double**>& U, int nx, int ny)
+void BoundaryCondition(Kokkos::View<double**>& U, const int nx, const int ny)
 {
     Kokkos::parallel_for
     (
@@ -76,22 +76,25 @@ void BoundaryCondition(Kokkos::View<double**>& U, int nx, int ny)
 }
 
 //Write U on disk through PDI
-void write_solution_to_file(Kokkos::View<double**>::HostMirror& U_host, Kokkos::View<double**>& U)
+void write_solution_to_file(const Kokkos::View<double**>::HostMirror& U_host, const Kokkos::View<double**>& U, int nwrite, double time)
 {   
     // Copy the view to the host mirror
     Kokkos::deep_copy(U_host, U);
 
     // Expose the solution
     PDI_multi_expose("write_data",
+                 "time", &time, PDI_OUT,
+                 "nwrite", &nwrite, PDI_OUT,
                  "main_field", U_host.data(), PDI_OUT,
                   NULL);
 
+    nwrite=nwrite+1;
     // Print writing information
-    std::cout << "\n ... " << "Solution written to file: " << " ...\n "<<std::endl;
+    std::cout << "\n ... " << "Solution written to file" << " ...\n "<<std::endl;
 }
 
 //Main loop
-void heat_equation(int argc, char* argv[], MPI_Comm main_comm, PC_tree_t conf)
+void heat_equation(int argc, char* argv[], const MPI_Comm main_comm, const PC_tree_t conf)
 {   
 
     // Get MPI info
@@ -99,40 +102,40 @@ void heat_equation(int argc, char* argv[], MPI_Comm main_comm, PC_tree_t conf)
 	int mpi_size; MPI_Comm_size(main_comm, &mpi_size);
 
     //Domain size, final time and diffusion coefficient
-    double Lx = 1.0;
-    double Ly = 1.0;
-    double Tend = 1.0;
-    double kappa = 0.1;
+    const double Lx = 1.0;
+    const double Ly = 1.0;
+    const double Tend = 5;
+    const double kappa = 0.1;
 
     //CFL number, number of cells and max number of iterations
-    double cfl = 0.9;
+    const double cfl = 0.9;
 
-    int nx = 1024;
-    int ny = 1024;
+    const int nx = 256;
+    const int ny = 256;
 
-    int niter = 100;
+    const int niter = 99999;
 
     //Cell size
-    double dx = Lx/nx;
-    double dy = Ly/ny;
+    const double dx = Lx/nx;
+    const double dy = Ly/ny;
 
     //time step calculated from the diffusion coefficient
-    double inv_dt_x = 1.0/(0.5*dx*dx/kappa);
-    double inv_dt_y = 1.0/(0.5*dy*dy/kappa);
-    double dt = cfl/(inv_dt_x + inv_dt_y);
+    const double inv_dt_x = 1.0/(0.5*dx*dx/kappa);
+    const double inv_dt_y = 1.0/(0.5*dy*dy/kappa);
+    double dt = cfl/(inv_dt_x + inv_dt_y); //Not const for time adjustment, but constant CFL
 
     //Size of the arrays
-    int ngc = 1; 
-    int size_x = nx + 2*ngc;
-    int size_y = ny + 2*ngc;
+    const int ngc = 1; 
+    const int size_x = nx + 2*ngc;
+    const int size_y = ny + 2*ngc;
 
     //Policies for looping over the whole solution, skipping ghost cells
-    Kokkos::MDRangePolicy<Kokkos::Rank<2>> policy({ngc,ngc},{size_x-ngc, size_y-ngc});
+    const Kokkos::MDRangePolicy<Kokkos::Rank<2>> policy({ngc,ngc},{size_x-ngc, size_y-ngc});
 
     //Compute memory required on host and device
-    int U_mem_size = size_x*size_y*sizeof(double);
-    int device_mem_size = 2*U_mem_size;
-    int host_mem_size = U_mem_size;
+    const int U_mem_size = size_x*size_y*sizeof(double);
+    const int device_mem_size = 2*U_mem_size;
+    const int host_mem_size = U_mem_size;
 
     //Initialize PDI meta-data
     PDI_multi_expose("init_PDI",
@@ -162,7 +165,7 @@ void heat_equation(int argc, char* argv[], MPI_Comm main_comm, PC_tree_t conf)
     std::cout << "Allocation on host: " << host_mem_size/1e6 << " MB" << std::endl;
     std::cout << "--------------------------------------------------"  << std::endl;
     }
-    
+
     //Allocate the arrays
     Kokkos::View<double**> U ("Solution U on device", size_x, size_y);
     Kokkos::View<double**> U_("Intermediate Solution U on device", size_x, size_y);
@@ -173,21 +176,22 @@ void heat_equation(int argc, char* argv[], MPI_Comm main_comm, PC_tree_t conf)
     //Initialisation
     Initialisation(U, dx, dy, policy);
 
-    //Write solution
-    write_solution_to_file(U_host,U);
-
     //Set time and n to 0 
-    double t = 0.0;
+    double time = 0.0;
     int nstep = 0;
+    int nwrite = 0;
+
+    //write initial condition
+    write_solution_to_file(U_host, U, nwrite, time);
 
     //Loop over the time steps
     Kokkos::Timer timer;
-    while (t < Tend && nstep < niter)
+    while (time < Tend && nstep < niter)
     {
         // if t+dt > Tend, reduce dt to reach Tend exactly
-        if (t + dt > Tend)
+        if (time + dt > Tend)
         {
-            dt = Tend - t;
+            dt = Tend - time;
         }
 
         //Fill U's ghost cell with periodic BC
@@ -200,30 +204,39 @@ void heat_equation(int argc, char* argv[], MPI_Comm main_comm, PC_tree_t conf)
         stencil_kernel(U, U_, dx, dy, dt, kappa, policy);
 
         //Update time and iteration number
-        t = t + dt;
+        time = time + dt;
         nstep = nstep + 1;
 
         //Print progress information
         if (nstep % 500 == 0)
         {
-            printf("Time step: %d, Time: %f\n", nstep, t);
+            printf("Time step: %d, Time: %f\n", nstep, time);
         }
-        
+
+        //Write solution every 1000 time steps
+        if (nstep % 1000 == 0)
+        {
+            write_solution_to_file(U_host, U, nwrite, time);
+        }
+
     }
     double elapsed_time = timer.seconds();
+
+    //Write solution
+    write_solution_to_file(U_host, U, nwrite, time);
 
     //print info and reason for stopping
     if (mpi_rank==0)
     {
-    if (t >= Tend)
+    if (time >= Tend)
     {
-        printf("Simulation finished because t >= Tend\n");
+        printf("Simulation finished because time >= Tend\n");
     }
     else if (nstep >= niter)
     {
         printf("Simulation finished because nstep >= niter\n");
     }
-    printf("Time step: %d, Time: %f\n", nstep, t);
+    printf("Time step: %d, Time: %f\n", nstep, time);
     
     //print performances
     print_perf(elapsed_time, nx, ny, nstep);
