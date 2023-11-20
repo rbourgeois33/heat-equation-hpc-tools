@@ -10,10 +10,15 @@ all_files = os.listdir('.')
 h5_files = [file for file in all_files if file.endswith('.h5')]
 
 for file_name in h5_files:
+
     # Load the HDF5 file
     with h5py.File(file_name, 'r') as file:
         data = file['data'][:]
         time = file['time'][()]
+
+    # Print dimensions
+    print(data.shape)
+    
     # Create the plot
     plt.figure(figsize=(8, 6))
     plt.pcolormesh(data, cmap='viridis')
