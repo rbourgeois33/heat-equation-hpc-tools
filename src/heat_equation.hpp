@@ -7,12 +7,12 @@ double initial_condition(double x, double y)
     return std::sin(2*M_PI*(x))*std::sin(2*M_PI*(y));
 }
 
-void Initialisation(Kokkos::View<double**>& U, int i0, int j0, int iend, int jend, double dx, double dy)
+void Initialisation(Kokkos::View<double**>& U, double dx, double dy, const Kokkos::MDRangePolicy<Kokkos::Rank<2>> &policy)
 {
     Kokkos::parallel_for
     (
         "Initialisation", 
-        Kokkos::MDRangePolicy<Kokkos::Rank<2>>({i0, j0}, {iend+1, jend+1}), 
+        policy, 
         KOKKOS_LAMBDA ( const int i , const int j )
         {   
             double x_i=double(i)*dx;
@@ -22,12 +22,12 @@ void Initialisation(Kokkos::View<double**>& U, int i0, int j0, int iend, int jen
     );
 }
 
-void copy(Kokkos::View<double**>& U, Kokkos::View<double**>& U_, int i0, int j0, int iend, int jend)
+void copy(Kokkos::View<double**>& U, Kokkos::View<double**>& U_, const Kokkos::MDRangePolicy<Kokkos::Rank<2>> &policy)
 {
     Kokkos::parallel_for
     (
         "Copy", 
-        Kokkos::MDRangePolicy<Kokkos::Rank<2>>({i0, j0}, {iend+1, jend+1}), 
+        policy, 
         KOKKOS_LAMBDA ( const int i , const int j )
         {   
             U_(i, j) = U(i, j) ;
@@ -35,12 +35,12 @@ void copy(Kokkos::View<double**>& U, Kokkos::View<double**>& U_, int i0, int j0,
     );
 }
 
-void stencil_kernel(Kokkos::View<double**>& U, Kokkos::View<double**>& U_, int i0, int j0, int iend, int jend, double dx, double dy, double dt, double kappa)
+void stencil_kernel(Kokkos::View<double**>& U, Kokkos::View<double**>& U_, double dx, double dy, double dt, double kappa, const Kokkos::MDRangePolicy<Kokkos::Rank<2>> &policy)
 {
     Kokkos::parallel_for
     (
         "heat_equation_kernel", 
-        Kokkos::MDRangePolicy<Kokkos::Rank<2>>({i0, j0}, {iend+1, jend+1}), 
+        policy, 
         KOKKOS_LAMBDA ( const int i , const int j )
         {   
             U(i, j) = U_(i, j) + dt*kappa*( (U_(i+1, j) - 2.0*U_(i, j) + U_(i-1, j))/(dx*dx) + (U_(i, j+1) - 2.0*U_(i, j) + U_(i, j-1))/(dy*dy) );
@@ -59,27 +59,27 @@ void print_perf(double elapsed_time, int nx, int ny, int nstep)
 
 }
 
-void BoundaryCondition(Kokkos::View<double**>& U, int i0, int j0, int iend, int jend)
+void BoundaryCondition(Kokkos::View<double**>& U, int nx, int ny)
 {
     Kokkos::parallel_for
     (
         "BoundaryCondition_i", 
-        Kokkos::RangePolicy<>(i0, iend+1), 
+        Kokkos::RangePolicy<>(1, nx+1), 
         KOKKOS_LAMBDA ( const int i )
         {   
-            U(i, j0  -1) = U(i, j0  );
-            U(i, jend+1) = U(i, jend);
+            U(i, 0   ) = U(i, ny);
+            U(i, ny+1) = U(i, 1 );
         }
     );
 
     Kokkos::parallel_for
     (
         "BoundaryCondition_j", 
-        Kokkos::RangePolicy<>(j0, jend+1), 
+        Kokkos::RangePolicy<>(1, ny+1), 
         KOKKOS_LAMBDA ( const int j )
         {   
-            U(i0  -1, j) = U(i0  , j);
-            U(iend+1, j) = U(iend, j);
+            U(0   , j) = U(ny  , j);
+            U(nx+1, j) = U(1   , j);
         }
     );
 }
@@ -132,16 +132,10 @@ void heat_equation(int argc, char* argv[], MPI_Comm main_comm, PC_tree_t conf)
     int ngc = 1; 
     int size_x = nx + 2*ngc;
     int size_y = ny + 2*ngc;
-    int start_x = 0;
-    int start_y = 0;
-    int end_x = size_x-1;
-    int end_y = size_y-1;
 
-    //Start and end of the solution
-    int start_sol_x = ngc; 
-    int start_sol_y = ngc;
-    int end_sol_x = size_x - ngc - 1;
-    int end_sol_y = size_y - ngc - 1;
+    //Policies for looping over the whole array with ghost cell, or the solution only
+    Kokkos::MDRangePolicy<Kokkos::Rank<2>> array_policy({0  ,0  },{size_x    , size_y    });
+    Kokkos::MDRangePolicy<Kokkos::Rank<2>>   sol_policy({ngc,ngc},{size_x-ngc, size_y-ngc});
 
     //Compute memory required on host and device
     int U_mem_size = size_x*size_y*sizeof(double);
@@ -155,7 +149,6 @@ void heat_equation(int argc, char* argv[], MPI_Comm main_comm, PC_tree_t conf)
                     "nx", &nx, PDI_OUT,
                     "ny", &ny, PDI_OUT,
                      NULL);
-
 
     //Print simulation information
     if (mpi_rank==0)
@@ -185,10 +178,11 @@ void heat_equation(int argc, char* argv[], MPI_Comm main_comm, PC_tree_t conf)
     auto U_host = Kokkos::create_mirror(U);
 
     //Initialisation
-    Initialisation(U, start_x, start_y, end_x, end_y, dx, dy);
+    Initialisation(U, dx, dy, sol_policy);
 
-    write_solution_to_file(U_host, U);
-    
+    //Write solution
+    write_solution_to_file(U_host,U);
+
     //Set time and n to 0 
     double t = 0.0;
     int nstep = 0;
@@ -204,9 +198,9 @@ void heat_equation(int argc, char* argv[], MPI_Comm main_comm, PC_tree_t conf)
             dt = Tend - t;
         }
 
-        BoundaryCondition(U, start_sol_x, start_sol_y, end_sol_x, end_sol_y);
-        copy(U, U_, start_x, start_y, end_x, end_y);
-        stencil_kernel(U, U_, start_sol_x, start_sol_y, end_sol_x, end_sol_y, dx, dy, dt, kappa);
+        BoundaryCondition(U, nx, ny);
+        copy(U, U_, array_policy);
+        stencil_kernel(U, U_, dx, dy, dt, kappa, sol_policy);
 
         //Update time and iteration number
         t = t + dt;
@@ -233,6 +227,7 @@ void heat_equation(int argc, char* argv[], MPI_Comm main_comm, PC_tree_t conf)
         printf("Simulation finished because nstep >= niter\n");
     }
     printf("Time step: %d, Time: %f\n", nstep, t);
+    
     //print performances
     print_perf(elapsed_time, nx, ny, nstep);
     }
