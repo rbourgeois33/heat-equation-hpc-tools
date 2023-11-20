@@ -1,27 +1,29 @@
 import h5py
 import matplotlib.pyplot as plt
 import numpy as np
+import os
 
-# Load your HDF5 file
-with h5py.File('data.h5', 'r') as file:
-    # Assuming the dataset you want to plot is named 'dataset_name'
-    # Replace 'dataset_name' with the actual name of your dataset
-    data = file['dataset_name'][:]
+# List all files in the current directory
+all_files = os.listdir('.')
 
-# Check if data is 2D
-if data.ndim != 2:
-    raise ValueError("Data is not 2D. Adjust your dataset or the script accordingly.")
+# Filter for .h5 files
+h5_files = [file for file in all_files if file.endswith('.h5')]
 
-# Create the plot
-plt.figure(figsize=(8, 6))
-plt.pcolormesh(data, cmap='viridis')  # You can choose different colormaps
-plt.colorbar()  # To show the color scale
-plt.title("2D Plot of HDF5 Data")
-plt.xlabel("X-axis label")
-plt.ylabel("Y-axis label")
+for file_name in h5_files:
+    # Load the HDF5 file
+    with h5py.File(file_name, 'r') as file:
+        data = file['data'][:]
+        time = file['time'][()]
+    # Create the plot
+    plt.figure(figsize=(8, 6))
+    plt.pcolormesh(data, cmap='viridis')
+    plt.colorbar()  
+    plt.title(f"solution at time = "+str(time))
+    plt.xlabel("X-axis label")
+    plt.ylabel("Y-axis label")
 
-# Save the plot as a PNG file
-plt.savefig("plot.png", dpi=300)
+    # Save the plot as a PNG file with the same name as the .h5 file
+    plt.savefig(f"{file_name.split('.')[0]}.png", dpi=300)
 
-# Optionally, display the plot
-# plt.show()
+    # Close the plot to avoid overlapping issues
+    plt.close()

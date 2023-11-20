@@ -4,7 +4,12 @@
 KOKKOS_INLINE_FUNCTION
 double initial_condition(double x, double y)
 {
-    return std::sin(2*M_PI*(x))*std::sin(2*M_PI*(y));
+    //return std::sin(2*M_PI*(x))*std::sin(2*M_PI*(y));
+
+    const double rmax=0.2;
+    const double r = sqrt((x-0.5)*(x-0.5)+(y-0.5)*(y-0.5));
+    return r<rmax ? 1:0;
+
 }
 
 //Initialize the view U with the initial condition function above
@@ -104,7 +109,7 @@ void heat_equation(int argc, char* argv[], const MPI_Comm main_comm, const PC_tr
     //Domain size, final time and diffusion coefficient
     const double Lx = 1.0;
     const double Ly = 1.0;
-    const double Tend = 5;
+    const double Tend = 1;
     const double kappa = 0.1;
 
     //CFL number, number of cells and max number of iterations
