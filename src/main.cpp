@@ -14,7 +14,7 @@
 
 int main(int argc, char** argv) 
 {
-  // Check the yaml file
+  // Check that the is in the argument list yaml file
   if ( argc != 2 ) 
   {
 		fprintf(stderr, "Usage: %s <config_file>\n", argv[0]);
@@ -25,7 +25,7 @@ int main(int argc, char** argv)
   MPI_Init(&argc, &argv);
   MPI_Comm main_comm = MPI_COMM_WORLD;
 
-  PC_tree_t conf = PC_parse_path(argv[1]);
+  PC_tree_t conf = PC_parse_path(argv[1]); // Get yml file
   PDI_init(PC_get(conf, ".pdi"));
 
   Kokkos::initialize(argc, argv);
@@ -38,7 +38,7 @@ int main(int argc, char** argv)
 
   PC_tree_destroy(&conf);
   PDI_finalize();
-  
+
   MPI_Finalize();
 
   return 0;

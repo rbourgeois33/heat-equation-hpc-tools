@@ -7,6 +7,7 @@ double initial_condition(double x, double y)
     return std::sin(2*M_PI*(x))*std::sin(2*M_PI*(y));
 }
 
+//Initialize the view U with the initial condition function above
 void Initialisation(Kokkos::View<double**>& U, double dx, double dy, const Kokkos::MDRangePolicy<Kokkos::Rank<2>> &policy)
 {
     Kokkos::parallel_for
@@ -22,6 +23,7 @@ void Initialisation(Kokkos::View<double**>& U, double dx, double dy, const Kokko
     );
 }
 
+//Apply a finite difference scheme on the view U, using the view U_
 void stencil_kernel(Kokkos::View<double**>& U, Kokkos::View<double**>& U_, double dx, double dy, double dt, double kappa, const Kokkos::MDRangePolicy<Kokkos::Rank<2>> &policy)
 {
     Kokkos::parallel_for
@@ -35,6 +37,7 @@ void stencil_kernel(Kokkos::View<double**>& U, Kokkos::View<double**>& U_, doubl
     );   
 }
 
+//Print performance data
 void print_perf(double elapsed_time, int nx, int ny, int nstep)
 {
     //Calculate performances
@@ -46,6 +49,7 @@ void print_perf(double elapsed_time, int nx, int ny, int nstep)
 
 }
 
+//Apply boundary condition on view U
 void BoundaryCondition(Kokkos::View<double**>& U, int nx, int ny)
 {
     Kokkos::parallel_for
@@ -71,6 +75,7 @@ void BoundaryCondition(Kokkos::View<double**>& U, int nx, int ny)
     );
 }
 
+//Write U on disk through PDI
 void write_solution_to_file(Kokkos::View<double**>::HostMirror& U_host, Kokkos::View<double**>& U)
 {   
     // Copy the view to the host mirror
@@ -85,6 +90,7 @@ void write_solution_to_file(Kokkos::View<double**>::HostMirror& U_host, Kokkos::
     std::cout << "\n ... " << "Solution written to file: " << " ...\n "<<std::endl;
 }
 
+//Main loop
 void heat_equation(int argc, char* argv[], MPI_Comm main_comm, PC_tree_t conf)
 {   
 
@@ -156,6 +162,7 @@ void heat_equation(int argc, char* argv[], MPI_Comm main_comm, PC_tree_t conf)
     std::cout << "Allocation on host: " << host_mem_size/1e6 << " MB" << std::endl;
     std::cout << "--------------------------------------------------"  << std::endl;
     }
+    
     //Allocate the arrays
     Kokkos::View<double**> U ("Solution U on device", size_x, size_y);
     Kokkos::View<double**> U_("Intermediate Solution U on device", size_x, size_y);
@@ -178,14 +185,18 @@ void heat_equation(int argc, char* argv[], MPI_Comm main_comm, PC_tree_t conf)
     while (t < Tend && nstep < niter)
     {
         // if t+dt > Tend, reduce dt to reach Tend exactly
-
         if (t + dt > Tend)
         {
             dt = Tend - t;
         }
 
+        //Fill U's ghost cell with periodic BC
         BoundaryCondition(U, nx, ny);
+
+        //Copy U's values in U_ to prepare udpate
         Kokkos::deep_copy(U_, U);
+
+        //Update U
         stencil_kernel(U, U_, dx, dy, dt, kappa, policy);
 
         //Update time and iteration number
