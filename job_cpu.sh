@@ -29,4 +29,4 @@ export OMP_PLACES=threads
 # execution 
 # with 'ntasks' MPI processes
 # with 'cpus-per-task' OpenMP threads per MPI process
-pdirun srun ./my_app ../io.yml
+pdirun srun ./my_app

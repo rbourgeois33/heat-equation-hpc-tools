@@ -3,12 +3,9 @@
 KOKKOS_INLINE_FUNCTION
 double initial_condition(double x, double y)
 {
-    //return std::sin(2*M_PI*(x))*std::sin(2*M_PI*(y));
-
     const double rmax=0.2;
     const double r = sqrt((x-0.5)*(x-0.5)+(y-0.5)*(y-0.5));
     return r<rmax ? 1:0;
-
 }
 
 //Initialize the view U with the initial condition function above
@@ -20,8 +17,8 @@ void Initialisation(Kokkos::View<double**>& U, const double dx, const double dy,
         policy, 
         KOKKOS_LAMBDA ( const int i , const int j )
         {   
-            double x_i=double(i + mpi_coords[0]*nx)*dx;
-            double y_j=double(j + mpi_coords[1]*ny)*dy;
+            double x_i=(double(i + mpi_coords[0]*nx)-0.5)*dx;
+            double y_j=(double(j + mpi_coords[1]*ny)-0.5)*dy;
             U(i, j) = initial_condition(x_i, y_j) ;
         }
     );
@@ -150,7 +147,7 @@ void heat_equation(int argc, char* argv[], const MPI_Comm main_comm, const PC_tr
     // Get MPI info and compute rank info (2D index and neighbors, see mpi.hpp)
     int mpi_rank; MPI_Comm_rank(main_comm, &mpi_rank);
     int mpi_size; MPI_Comm_size(main_comm, &mpi_size);
-    MPI_INFO mpi_info(mpi_rank, mpi_size, mpi_max_rank);
+    mpi_decomposition_info mpi_info(mpi_rank, mpi_size, mpi_max_rank);
 
     //Send meta-data to PDI
     PDI_multi_expose("init_PDI",

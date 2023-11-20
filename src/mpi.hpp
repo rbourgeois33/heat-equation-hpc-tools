@@ -1,5 +1,5 @@
 // Class that stores all the necessary local mpi info such as coordinates and neighbors
-class MPI_INFO {
+class mpi_decomposition_info {
 public:
     int mpi_rank;
     int mpi_size;
@@ -7,7 +7,7 @@ public:
     int mpi_coords[2]; // Coordinates corresponding to the mpi_rank
     int neighbors_mpi_rank[4]; // Array to store ranks of the neighbors: right, left, bottom, top
 
-    MPI_INFO(int rank, int size, int max_rank[2]) {
+    mpi_decomposition_info(int rank, int size, int max_rank[2]) {
         mpi_rank = rank;
         mpi_size = size;
         mpi_max_rank[0] = max_rank[0];
