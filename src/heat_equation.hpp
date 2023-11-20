@@ -76,15 +76,15 @@ void BoundaryCondition(Kokkos::View<double**>& U, const int nx, const int ny)
 }
 
 //Write U on disk through PDI
-void write_solution_to_file(const Kokkos::View<double**>::HostMirror& U_host, const Kokkos::View<double**>& U, int nwrite, double time)
+void write_solution_to_file(const Kokkos::View<double**>::HostMirror& U_host, const Kokkos::View<double**>& U, int& nwrite, double time)
 {   
     // Copy the view to the host mirror
     Kokkos::deep_copy(U_host, U);
 
     // Expose the solution
     PDI_multi_expose("write_data",
-                 "time", &time, PDI_OUT,
                  "nwrite", &nwrite, PDI_OUT,
+                 "time", &time, PDI_OUT,
                  "main_field", U_host.data(), PDI_OUT,
                   NULL);
 
@@ -113,7 +113,7 @@ void heat_equation(int argc, char* argv[], const MPI_Comm main_comm, const PC_tr
     const int nx = 256;
     const int ny = 256;
 
-    const int niter = 99999;
+    const int niter = 9999999;
 
     //Cell size
     const double dx = Lx/nx;
@@ -123,6 +123,9 @@ void heat_equation(int argc, char* argv[], const MPI_Comm main_comm, const PC_tr
     const double inv_dt_x = 1.0/(0.5*dx*dx/kappa);
     const double inv_dt_y = 1.0/(0.5*dy*dy/kappa);
     double dt = cfl/(inv_dt_x + inv_dt_y); //Not const for time adjustment, but constant CFL
+    
+    //predicted amount of steps to progess 10 percents
+    const int ntot = std::floor(Tend/(10*dt));
 
     //Size of the arrays
     const int ngc = 1; 
@@ -213,8 +216,8 @@ void heat_equation(int argc, char* argv[], const MPI_Comm main_comm, const PC_tr
             printf("Time step: %d, Time: %f\n", nstep, time);
         }
 
-        //Write solution every 1000 time steps
-        if (nstep % 1000 == 0)
+        //Write solution every 10% of progression
+        if (nstep % ntot == 0)
         {
             write_solution_to_file(U_host, U, nwrite, time);
         }
