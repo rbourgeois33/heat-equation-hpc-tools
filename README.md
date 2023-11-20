@@ -52,6 +52,6 @@ cmake -DCMAKE_INSTALL_PREFIX=$PWD/../../install_pdi -DUSE_HDF5=SYSTEM -DBUILD_HD
 * `make -j 16`
 
 # 6: Run the code
-* `Use the slurm scripts in heat_equation/ to launch jobs`
+* `Use the slurm scripts in heat_equation/ copied in the build folder to launch jobs`
 
 
