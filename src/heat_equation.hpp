@@ -1,4 +1,4 @@
-#include "mpi.hpp"
+#include "mpi_decomposition.hpp"
 
 KOKKOS_INLINE_FUNCTION
 double initial_condition(double x, double y)
@@ -147,7 +147,7 @@ void heat_equation(int argc, char* argv[], const MPI_Comm main_comm, const PC_tr
     // Get MPI info and compute rank info (2D index and neighbors, see mpi.hpp)
     int mpi_rank; MPI_Comm_rank(main_comm, &mpi_rank);
     int mpi_size; MPI_Comm_size(main_comm, &mpi_size);
-    mpi_decomposition_info mpi_info(mpi_rank, mpi_size, mpi_max_rank);
+    mpi_decomposition mpi_info(mpi_rank, mpi_size, mpi_max_rank);
 
     //Send meta-data to PDI
     PDI_multi_expose("init_PDI",
