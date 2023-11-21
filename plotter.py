@@ -21,7 +21,7 @@ for file_name in h5_files:
     
     # Create the plot
     plt.figure(figsize=(8, 6))
-    plt.pcolormesh(data, cmap='viridis')
+    plt.pcolormesh(data.transpose(), cmap='viridis')
     plt.colorbar()  
     plt.title(f"solution at time = "+str(time))
     plt.xlabel("X-axis label")
