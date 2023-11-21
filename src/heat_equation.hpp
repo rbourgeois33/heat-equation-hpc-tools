@@ -51,7 +51,7 @@ void print_perf(const double elapsed_time, const int nx, const int ny, const int
 }
 
 //Apply boundary condition on view U
-void BoundaryCondition(Kokkos::View<double**>& U, const int nx, const int ny)
+void BoundaryCondition(Kokkos::View<double**>& U, const int nx, const int ny, const MPI_DECOMPOSITION& mpi_decomposition)
 {
     Kokkos::parallel_for
     (
@@ -74,6 +74,51 @@ void BoundaryCondition(Kokkos::View<double**>& U, const int nx, const int ny)
             U(nx+1, j) = U(1   , j);
         }
     );
+
+    // y>0 send / receive
+
+    // // Fill send buffer with top data and fence
+    // Kokkos::parallel_for("Fill send buffer with top data",  
+    // Kokkos::RangePolicy<>(1, nx+1), 
+    // KOKKOS_LAMBDA ( const int i ){mpi_decomposition.send_buffer_x(i) = U(i, ny);});
+    // Kokkos::fence();
+
+    // //Fence, Copy send buffer to host and send
+    // Kokkos::deep_copy(mpi_decomposition.send_buffer_x_host, mpi_decomposition.send_buffer_x);
+    // MPI_Send(mpi_decomposition.send_buffer_x_host.data(), nx, MPI_DOUBLE, mpi_decomposition.rank_top, 0, mpi_decomposition.comm);
+
+    // //Receive buffer and copy to device
+    // MPI_Recv(mpi_decomposition.recv_buffer_x_host.data(), nx, MPI_DOUBLE, mpi_decomposition.rank_bottom, 0, mpi_decomposition.comm, MPI_STATUS_IGNORE);
+    // Kokkos::deep_copy(mpi_decomposition.recv_buffer_x, mpi_decomposition.recv_buffer_x_host);
+
+    // //Fill bot BC with buffer data
+    // Kokkos::parallel_for("Fill recv bot BC with buffer data",  
+    // Kokkos::RangePolicy<>(1, nx+1), 
+    // KOKKOS_LAMBDA ( const int i ){U(i, 0) = mpi_decomposition.recv_buffer_x(i);});
+    // Kokkos::fence();
+
+    // // y<0 send receive
+
+    // // Fill send buffer with bot data and fence
+    // Kokkos::parallel_for("Fill send buffer with top data",  
+    // Kokkos::RangePolicy<>(1, nx+1), 
+    // KOKKOS_LAMBDA ( const int i ){mpi_decomposition.send_buffer_x(i) = U(i, 1);});
+    // Kokkos::fence();
+
+    // //Fence, Copy send buffer to host and send
+    // Kokkos::deep_copy(mpi_decomposition.send_buffer_x_host, mpi_decomposition.send_buffer_x);
+    // MPI_Send(mpi_decomposition.send_buffer_x_host.data(), nx, MPI_DOUBLE, mpi_decomposition.rank_bottom, 1, mpi_decomposition.comm);
+
+    // //Receive buffer and copy to device
+    // MPI_Recv(mpi_decomposition.recv_buffer_x_host.data(), nx, MPI_DOUBLE, mpi_decomposition.rank_top, 1, mpi_decomposition.comm, MPI_STATUS_IGNORE);
+    // Kokkos::deep_copy(mpi_decomposition.recv_buffer_x, mpi_decomposition.recv_buffer_x_host);
+
+    // //Fill bot BC with buffer data
+    // Kokkos::parallel_for("Fill recv top BC with buffer data",  
+    // Kokkos::RangePolicy<>(1, nx+1), 
+    // KOKKOS_LAMBDA ( const int i ){U(i, ny) = mpi_decomposition.recv_buffer_x(i);});
+    // Kokkos::fence();
+
 }
 
 //Write U on disk through PDI
@@ -88,7 +133,7 @@ void write_solution_to_file(const Kokkos::View<double**>::HostMirror& U_host, co
                  "time", &time, PDI_OUT,
                  "main_field", U_host.data(), PDI_OUT,
                   NULL);
-
+    
     //Increment writing counter
     nwrite=nwrite+1;
 }
@@ -109,15 +154,15 @@ void heat_equation(int argc, char* argv[], const MPI_Comm main_comm, const PC_tr
 
     const int nx = 128;
     const int ny = 128;
-    int mpi_max_rank[2]={3,3};
+    int mpi_max_coords[2]={3,3};
 
     const int nmax = 9999999;  
 
     /// ---- Untunable parameters ----
 
     //Number of cells in the whole domain
-    const int Nx = nx*mpi_max_rank[0];
-    const int Ny = ny*mpi_max_rank[1];
+    const int Nx = nx*mpi_max_coords[0];
+    const int Ny = ny*mpi_max_coords[1];
 
     //Cell size
     const double dx = Lx/Nx;
@@ -147,12 +192,12 @@ void heat_equation(int argc, char* argv[], const MPI_Comm main_comm, const PC_tr
     // Get MPI info and compute rank info (2D index and neighbors, see mpi.hpp)
     int mpi_rank; MPI_Comm_rank(main_comm, &mpi_rank);
     int mpi_size; MPI_Comm_size(main_comm, &mpi_size);
-    mpi_decomposition mpi_info(mpi_rank, mpi_size, mpi_max_rank);
+    MPI_DECOMPOSITION mpi_decomposition(mpi_rank, mpi_size, mpi_max_coords, main_comm, nx, ny);
 
     //Send meta-data to PDI
     PDI_multi_expose("init_PDI",
-                    "mpi_coords", &mpi_info.mpi_coords, PDI_OUT,
-                    "mpi_max_rank", &mpi_info.mpi_max_rank, PDI_OUT,
+                    "mpi_coords", &mpi_decomposition.coords, PDI_OUT,
+                    "mpi_max_coords", &mpi_decomposition.max_coords, PDI_OUT,
                     "nx", &nx, PDI_OUT,
                     "ny", &ny, PDI_OUT,
                      NULL);
@@ -180,9 +225,9 @@ void heat_equation(int argc, char* argv[], const MPI_Comm main_comm, const PC_tr
     }
 
     // Print MPU info (see mpi.hpp)
-    MPI_Barrier(main_comm);
-    mpi_info.printDetails();
-    MPI_Barrier(main_comm);
+    MPI_Barrier(mpi_decomposition.comm);
+    mpi_decomposition.printDetails();
+    MPI_Barrier(mpi_decomposition.comm);
 
     //Allocate the arrays
     Kokkos::View<double**> U ("Solution U on device", size_x, size_y);
@@ -192,7 +237,7 @@ void heat_equation(int argc, char* argv[], const MPI_Comm main_comm, const PC_tr
     auto U_host = Kokkos::create_mirror(U);
 
     //Initialisation
-    Initialisation(U, dx, dy, nx, ny, mpi_info.mpi_coords, policy);
+    Initialisation(U, dx, dy, nx, ny, mpi_decomposition.coords, policy);
 
     //Set time time and indexes to 0
     double time = 0.0;
@@ -213,7 +258,7 @@ void heat_equation(int argc, char* argv[], const MPI_Comm main_comm, const PC_tr
         }
 
         //Fill U's ghost cell with periodic BC
-        BoundaryCondition(U, nx, ny);
+        BoundaryCondition(U, nx, ny, mpi_decomposition);
 
         //Copy U's values in U_ to prepare udpate
         Kokkos::deep_copy(U_, U);
