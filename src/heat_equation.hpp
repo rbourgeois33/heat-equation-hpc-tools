@@ -52,45 +52,20 @@ void print_perf(const double elapsed_time, const int nx, const int ny, const int
 }
 
 //Apply boundary condition on view U
-void BoundaryCondition(Kokkos::View<double**>& U, MPI_DECOMPOSITION& mpi_decomposition)
+void MPIBoundaryCondition(Kokkos::View<double**>& U, MPI_DECOMPOSITION& mpi_decomposition)
 {
 
-    const int nx=mpi_decomposition.nx;
-    const int ny=mpi_decomposition.ny;
+    mpi_decomposition.fill_buffers_from_U(U, mpi_decomposition.up);
 
-    // Kokkos::parallel_for
-    // (
-    //     "BoundaryCondition_i", 
-    //     Kokkos::RangePolicy<>(1, nx+1), 
-    //     KOKKOS_LAMBDA ( const int i )
-    //     {   
-    //         U(i, 0   ) = U(i, ny);
-    //         U(i, ny+1) = U(i, 1 );
-    //     }
-    // );
+    mpi_decomposition.send_recv_buffers(mpi_decomposition.up);
 
-    Kokkos::parallel_for
-    (
-        "BoundaryCondition_j", 
-        Kokkos::RangePolicy<>(1, ny+1), 
-        KOKKOS_LAMBDA ( const int j )
-        {   
-            U(0   , j) = U(nx  , j);
-            U(nx+1, j) = U(1   , j);
-        }
-    );
+    mpi_decomposition.fill_U_from_buffers(U, mpi_decomposition.up);
 
-    mpi_decomposition.fill_buffer_x_from_U(U, mpi_decomposition.bottom_to_top);
+    mpi_decomposition.fill_buffers_from_U(U, mpi_decomposition.down);
 
-    mpi_decomposition.send_recv_buffer_x(mpi_decomposition.bottom_to_top);
+    mpi_decomposition.send_recv_buffers(mpi_decomposition.down);
 
-    mpi_decomposition.fill_U_from_buffer_x(U, mpi_decomposition.bottom_to_top);
-
-    mpi_decomposition.fill_buffer_x_from_U(U, mpi_decomposition.top_to_bottom);
-
-    mpi_decomposition.send_recv_buffer_x(mpi_decomposition.top_to_bottom);
-
-    mpi_decomposition.fill_U_from_buffer_x(U, mpi_decomposition.top_to_bottom);
+    mpi_decomposition.fill_U_from_buffers(U, mpi_decomposition.down);
 
 }
 
@@ -126,7 +101,7 @@ void heat_equation(int argc, char* argv[], const MPI_Comm main_comm, const PC_tr
     const double cfl = 0.9;
 
     const int nx = 128;
-    const int ny = 128;
+    const int ny = 64;
     int mpi_max_coords[2]={3,3};
 
     const int nmax = 9999999;  
@@ -228,8 +203,8 @@ void heat_equation(int argc, char* argv[], const MPI_Comm main_comm, const PC_tr
             dt = Tend - time;
         }
 
-        //Fill U's ghost cell with periodic BC
-        BoundaryCondition(U, mpi_decomposition);
+        //Fill U's ghost cell with MPI periodic BC
+        MPIBoundaryCondition(U, mpi_decomposition);
 
         //Copy U's values in U_ to prepare udpate
         Kokkos::deep_copy(U_, U);
