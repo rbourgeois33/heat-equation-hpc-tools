@@ -39,7 +39,7 @@ public:
         ny = ny_;
         comm=comm_;
 
-        // Allocate MPI buffers
+        //Allocate MPI buffers
         send_buffer_y = Kokkos::View<double*>("send buffer for y BC", nx);
         recv_buffer_y = Kokkos::View<double*>("recv buffer for y BC", nx);
         send_buffer_y_host = Kokkos::create_mirror(send_buffer_y);
@@ -89,8 +89,8 @@ public:
 
     //Print info to user
     void printDetails() {
-        std::cout << "Rank: " << rank << ", Coordinates: (" << coords[0] << ", " << coords[1] << "), ";
-        std::cout << "Neighbors - Right: " << right_rank << ", Left: " << left_rank << ", Bottom: " << bottom_rank << ", Top: " << top_rank << std::endl;
+    printf("Rank: %d, Coordinates: (%d, %d), ", rank, coords[0], coords[1]);
+    printf("Neighbors - Right: %d, Left: %d, Bottom: %d, Top: %d\n", right_rank, left_rank, bottom_rank, top_rank);
     }
 
     void send_recv_buffers(int direction)
@@ -103,7 +103,7 @@ public:
 
         int tag_x = direction==up ? 0 : 1;
         int tag_y = direction==up ? 2 : 3;
-
+        
         //Copy send to host
         Kokkos::deep_copy(send_buffer_y_host, send_buffer_y);
         Kokkos::deep_copy(send_buffer_x_host, send_buffer_x);
@@ -128,13 +128,16 @@ public:
     int n_extract_x = direction==up ? nx : 1;
 
     // Fill buffer from U
-    Kokkos::parallel_for("fill buffer  from U",  
+    Kokkos::parallel_for("fill buffer x from U",  
     Kokkos::RangePolicy<>(0, nx), 
-    KOKKOS_LAMBDA ( const int i ){send_buffer_y(i) = U(i+1, n_extract_y);});
+    KOKKOS_CLASS_LAMBDA ( const int i ){send_buffer_y(i) = U(i+1, n_extract_y);}); //When using KOKKOS_LAMBDA in a class, one has to specify it using KOKKOS_CLASS_LAMBDA
 
     Kokkos::parallel_for("fill buffer y from U",  
     Kokkos::RangePolicy<>(0, ny), 
-    KOKKOS_LAMBDA ( const int j ){send_buffer_x(j) = U(n_extract_x, j+1);});
+    KOKKOS_CLASS_LAMBDA ( const int j ){send_buffer_x(j) = U(n_extract_x, j+1);});
+
+    Kokkos::fence(); //ensure the filling is done before going on
+    MPI_Barrier(comm);
     }
 
     void fill_U_from_buffers(Kokkos::View<double**>& U, int direction)
@@ -146,10 +149,13 @@ public:
     // Fill U from buffer
     Kokkos::parallel_for("fill U from x buffer",  
     Kokkos::RangePolicy<>(0, nx), 
-    KOKKOS_LAMBDA ( const int i ){U(i+1, n_fill_y) = recv_buffer_y(i);});
+    KOKKOS_CLASS_LAMBDA ( const int i ){U(i+1, n_fill_y) = recv_buffer_y(i);});
 
     Kokkos::parallel_for("fill U from y buffer",  
     Kokkos::RangePolicy<>(0, ny), 
-    KOKKOS_LAMBDA ( const int j ){U(n_fill_x, j+1) = recv_buffer_x(j);});
+    KOKKOS_CLASS_LAMBDA ( const int j ){U(n_fill_x, j+1) = recv_buffer_x(j);});
+
+    Kokkos::fence(); //ensure the filling is done before going on
+    MPI_Barrier(comm);
     }
 };

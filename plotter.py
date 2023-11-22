@@ -24,8 +24,8 @@ for file_name in h5_files:
     plt.pcolormesh(data.transpose(), cmap='viridis')
     plt.colorbar()  
     plt.title(f"solution at time = "+str(time))
-    plt.xlabel("X-axis label")
-    plt.ylabel("Y-axis label")
+    plt.xlabel("X-axis")
+    plt.ylabel("Y-axis")
 
     # Save the plot as a PNG file with the same name as the .h5 file
     plt.savefig(f"{file_name.split('.')[0]}.png", dpi=300)

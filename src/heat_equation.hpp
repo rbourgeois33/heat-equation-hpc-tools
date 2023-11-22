@@ -1,26 +1,29 @@
 #include "mpi_decomposition.hpp"
 
 KOKKOS_INLINE_FUNCTION
-double initial_condition(double x, double y)
+double initial_condition(const double x, const double y)
 {
     const double rmax=0.2;
-    const double r = sqrt((x-0.5)*(x-0.5)+(y-0.5)*(y-0.5));
-    //return x+y;
+    const double r = Kokkos::sqrt((x-0.5)*(x-0.5)+(y-0.5)*(y-0.5));
     return r<rmax ? 1:0;
 }
 
 //Initialize the view U with the initial condition function above
-void Initialisation(Kokkos::View<double**>& U, const double dx, const double dy, const int nx, const int ny, const int mpi_coords[2], const Kokkos::MDRangePolicy<Kokkos::Rank<2>> &policy)
+void Initialisation(Kokkos::View<double**>& U, const double dx, const double dy, MPI_DECOMPOSITION& mpi_decomposition, const Kokkos::MDRangePolicy<Kokkos::Rank<2>> &policy)
 {
+    int nx = mpi_decomposition.nx;
+    int ny = mpi_decomposition.ny;
+    int mpi_coords[2] = {mpi_decomposition.coords[0], mpi_decomposition.coords[1]};
+
     Kokkos::parallel_for
     (
         "Initialisation", 
         policy, 
         KOKKOS_LAMBDA ( const int i , const int j )
         {   
-            double x_i=(double(i + mpi_coords[0]*nx)-0.5)*dx;
-            double y_j=(double(j + mpi_coords[1]*ny)-0.5)*dy;
-            U(i, j) = initial_condition(x_i, y_j) ;
+            const double x = (i + mpi_coords[0]*nx)*dx - 0.5*dx;
+            const double y = (j + mpi_coords[1]*ny)*dy - 0.5*dy;
+            U(i, j) = initial_condition(x, y) ;
         }
     );
 }
@@ -94,15 +97,15 @@ void heat_equation(int argc, char* argv[], const MPI_Comm main_comm, const PC_tr
     //Domain size, final time and diffusion coefficient
     const double Lx = 1.0;
     const double Ly = 1.0;
-    const double Tend = 0.01;
+    const double Tend = 1;
     const double kappa = 0.1;
 
     //CFL number, number of cells per proc, mpi decomposition and max number of iter
     const double cfl = 0.9;
 
     const int nx = 128;
-    const int ny = 64;
-    int mpi_max_coords[2]={3,3};
+    const int ny = 128;
+    int mpi_max_coords[2]={1,2};
 
     const int nmax = 9999999;  
 
@@ -153,27 +156,24 @@ void heat_equation(int argc, char* argv[], const MPI_Comm main_comm, const PC_tr
     if (mpi_rank==0)
     {
     Kokkos::print_configuration(std::cout);
-
-    std::cout << "------------ Simulation Information --------------"  << std::endl;
-    std::cout << "Diffusion coefficient: " << kappa << std::endl;
-    std::cout << "Cell size: " << dx << std::endl;
-    std::cout << "Time step: " << dt << std::endl;
-    std::cout << "Number of cells per proc: " << nx << " , "<< ny << std::endl;
-    std::cout << "Total of cells per proc: " << Nx << " , "<< Ny << std::endl;
-    std::cout << "Number of iterations: " << nmax << std::endl;
-    std::cout << "CFL number: " << cfl << std::endl;
-    std::cout << "Final time: " << Tend << std::endl;
-    std::cout << "Domain size: " << Lx << " , " << Ly << std::endl;
-    std::cout << "Memory size of U, per proc: " << U_mem_size/1e6 << " MB" << std::endl;
-    std::cout << "Allocation on device, per proc: " << device_mem_size/1e6 << " MB" << std::endl;
-    std::cout << "Allocation on host, per proc: " << host_mem_size/1e6 << " MB" << std::endl;
-    std::cout << "--------------------------------------------------"  << std::endl;
+    printf("------------ Simulation Information --------------\n");
+    printf("Diffusion coefficient: %f\n", kappa);
+    printf("Cell size: %f\n", dx);
+    printf("Time step: %f\n", dt);
+    printf("Number of cells per proc: %d , %d\n", nx, ny);
+    printf("Total of cells per proc: %d , %d\n", Nx, Ny);
+    printf("Number of iterations: %d\n", nmax);
+    printf("CFL number: %f\n", cfl);
+    printf("Final time: %f\n", Tend);
+    printf("Domain size: %f , %f\n", Lx, Ly);
+    printf("Memory size of U, per proc: %f MB\n", U_mem_size / 1e6);
+    printf("Allocation on device, per proc: %f MB\n", device_mem_size / 1e6);
+    printf("Allocation on host, per proc: %f MB\n", host_mem_size / 1e6);
+    printf("--------------------------------------------------\n");
     }
 
     // Print MPU info (see mpi.hpp)
-    MPI_Barrier(mpi_decomposition.comm);
     mpi_decomposition.printDetails();
-    MPI_Barrier(mpi_decomposition.comm);
 
     //Allocate the arrays
     Kokkos::View<double**> U ("Solution U on device", size_x, size_y);
@@ -183,7 +183,7 @@ void heat_equation(int argc, char* argv[], const MPI_Comm main_comm, const PC_tr
     auto U_host = Kokkos::create_mirror(U);
 
     //Initialisation
-    Initialisation(U, dx, dy, nx, ny, mpi_decomposition.coords, policy);
+    Initialisation(U, dx, dy, mpi_decomposition, policy);
 
     //Set time time and indexes to 0
     double time = 0.0;
@@ -197,6 +197,9 @@ void heat_equation(int argc, char* argv[], const MPI_Comm main_comm, const PC_tr
     Kokkos::Timer timer;
     while (time < Tend && nstep < nmax)
     {
+        Kokkos::fence(); // Kokkos kernels are asynchronous. This waits until all kernels are done before continuing
+        MPI_Barrier(mpi_decomposition.comm);
+
         // if t+dt > Tend, reduce dt to reach Tend exactly
         if (time + dt > Tend)
         {
