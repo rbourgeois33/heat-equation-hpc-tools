@@ -1,16 +1,24 @@
 // Class that stores all the necessary local mpi info such as coordinates and neighbors
 
+struct Coordinates{
+    int x;
+    int y;
+
+    Coordinates() = default;
+    Coordinates(int x_, int y_):x(x_), y(y_){}
+    };
+
 class MPI_DECOMPOSITION {
 
 public:
 
     int rank; //mpi_rank
     int size; // mpi_size
-    int max_coords[2]; // Array to store the maximum ranks in X and Y dimensions
+    Coordinates max_coords; // Array to store the maximum ranks in X and Y dimensions
     int nx, ny; //Size of the local domain
     MPI_Comm comm; // mpi communicator
 
-    int coords[2]; // 2D oordinates corresponding to the rank
+    Coordinates coords; // 2D coordinates corresponding to the rank
     int left_rank, right_rank, top_rank, bottom_rank; // mpi_rank of the neighbor
 
     // send / recv MPI buffers for BC on host and device, size unknown here
@@ -28,13 +36,13 @@ public:
     int up = 0;
     int down = 1;
 
-    MPI_DECOMPOSITION(int rank_, int size_, int max_coords_[2], MPI_Comm comm_, int nx_, int ny_) {
+    MPI_DECOMPOSITION(int rank_, int size_, Coordinates max_coords_, MPI_Comm comm_, int nx_, int ny_) {
 
         //Get input values
         rank = rank_;
         size = size_;
-        max_coords[0] = max_coords_[0];
-        max_coords[1] = max_coords_[1];
+        max_coords.x = max_coords_.x;
+        max_coords.y = max_coords_.y;
         nx = nx_;
         ny = ny_;
         comm=comm_;
@@ -51,7 +59,7 @@ public:
         recv_buffer_x_host = Kokkos::create_mirror(recv_buffer_x);
 
         // Validate the configuration
-        if (max_coords[0] * max_coords[1] != size) {
+        if (max_coords.x * max_coords.y != size) {
             throw std::invalid_argument("The product of max_coords dimensions does not match size.");
         }
 
@@ -61,35 +69,35 @@ public:
     }
 
     void computeCoords() {
-        coords[0] = rank / max_coords[1];
-        coords[1] = rank % max_coords[1];
+        coords.x = Kokkos::floor(rank / max_coords.y);
+        coords.y = rank % max_coords.y;
     }
 
-    int coordsToRank(const int coords[2]) {
-        return coords[0] * max_coords[1] + coords[1];
+    int coordsToRank(const Coordinates coords) {
+        return coords.x * max_coords.y + coords.y;
     }
 
     void computeNeighborRanks() {
         // Right neighbor
-        int right[2] = {(coords[0] + 1) % max_coords[0], coords[1]};
+        const Coordinates right{(coords.x + 1) % max_coords.x, coords.y};
         right_rank = coordsToRank(right);
 
         // Left neighbor
-        int left[2] = {(coords[0] + max_coords[0] - 1) % max_coords[0], coords[1]};
+        const Coordinates left{(coords.x + max_coords.x - 1) % max_coords.x, coords.y};
         left_rank = coordsToRank(left);
 
         // Bottom neighbor
-        int bottom[2] = {coords[0], (coords[1] + 1) % max_coords[1]};
+        const Coordinates bottom{coords.x, (coords.y + 1) % max_coords.y};
         top_rank = coordsToRank(bottom);
 
         // Top neighbor
-        int top[2] = {coords[0], (coords[1] + max_coords[1] - 1) % max_coords[1]};
+        const Coordinates top{coords.x, (coords.y + max_coords.y - 1) % max_coords.y};
         bottom_rank = coordsToRank(top);
     }
 
     //Print info to user
     void printDetails() {
-    printf("Rank: %d, Coordinates: (%d, %d), ", rank, coords[0], coords[1]);
+    printf("Rank: %d, Coordinates: (%d, %d), ", rank, coords.x, coords.y);
     printf("Neighbors - Right: %d, Left: %d, Bottom: %d, Top: %d\n", right_rank, left_rank, bottom_rank, top_rank);
     }
 

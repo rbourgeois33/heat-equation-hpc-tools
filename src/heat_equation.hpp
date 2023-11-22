@@ -9,11 +9,11 @@ double initial_condition(const double x, const double y)
 }
 
 //Initialize the view U with the initial condition function above
-void Initialisation(Kokkos::View<double**>& U, const double dx, const double dy, MPI_DECOMPOSITION& mpi_decomposition, const Kokkos::MDRangePolicy<Kokkos::Rank<2>> &policy)
+void Initialisation(Kokkos::View<double**>& U, const double dx, const double dy, const MPI_DECOMPOSITION mpi_decomposition, const Kokkos::MDRangePolicy<Kokkos::Rank<2>> &policy)
 {
     int nx = mpi_decomposition.nx;
     int ny = mpi_decomposition.ny;
-    int mpi_coords[2] = {mpi_decomposition.coords[0], mpi_decomposition.coords[1]};
+    Coordinates mpi_coords = {mpi_decomposition.coords.x, mpi_decomposition.coords.y};
 
     Kokkos::parallel_for
     (
@@ -21,8 +21,11 @@ void Initialisation(Kokkos::View<double**>& U, const double dx, const double dy,
         policy, 
         KOKKOS_LAMBDA ( const int i , const int j )
         {   
-            const double x = (i + mpi_coords[0]*nx)*dx - 0.5*dx;
-            const double y = (j + mpi_coords[1]*ny)*dy - 0.5*dy;
+            if ((i==1)&&(j==1)) {
+                printf("Rank: %d, (%d, %d), (%d, %d)\n", mpi_decomposition.rank, mpi_decomposition.coords.x, mpi_decomposition.coords.y, nx, ny);
+            }
+            const double x = (i + mpi_coords.x*nx)*dx - 0.5*dx;
+            const double y = (j + mpi_coords.y*ny)*dy - 0.5*dy;
             U(i, j) = initial_condition(x, y) ;
         }
     );
@@ -105,15 +108,17 @@ void heat_equation(int argc, char* argv[], const MPI_Comm main_comm, const PC_tr
 
     const int nx = 128;
     const int ny = 128;
-    int mpi_max_coords[2]={1,2};
+    Coordinates mpi_max_coords;
+    mpi_max_coords.x=4;
+    mpi_max_coords.y=3;
 
     const int nmax = 9999999;  
 
     /// ---- Untunable parameters ----
 
     //Number of cells in the whole domain
-    const int Nx = nx*mpi_max_coords[0];
-    const int Ny = ny*mpi_max_coords[1];
+    const int Nx = nx*mpi_max_coords.x;
+    const int Ny = ny*mpi_max_coords.y;
 
     //Cell size
     const double dx = Lx/Nx;
@@ -146,8 +151,10 @@ void heat_equation(int argc, char* argv[], const MPI_Comm main_comm, const PC_tr
 
     //Send meta-data to PDI
     PDI_multi_expose("init_PDI",
-                    "mpi_coords", &mpi_decomposition.coords, PDI_OUT,
-                    "mpi_max_coords", &mpi_decomposition.max_coords, PDI_OUT,
+                    "mpi_coords_x", &mpi_decomposition.coords.x, PDI_OUT,
+                    "mpi_coords_y", &mpi_decomposition.coords.y, PDI_OUT,
+                    "mpi_max_coords_x", &mpi_decomposition.max_coords.x, PDI_OUT,
+                    "mpi_max_coords_y", &mpi_decomposition.max_coords.y, PDI_OUT,
                     "nx", &nx, PDI_OUT,
                     "ny", &ny, PDI_OUT,
                      NULL);
@@ -172,8 +179,12 @@ void heat_equation(int argc, char* argv[], const MPI_Comm main_comm, const PC_tr
     printf("--------------------------------------------------\n");
     }
 
-    // Print MPU info (see mpi.hpp)
+    // Print MPU info (see mpi_decomposition.hpp)
+    Kokkos::fence();
+    MPI_Barrier(mpi_decomposition.comm);
     mpi_decomposition.printDetails();
+    Kokkos::fence();
+    MPI_Barrier(mpi_decomposition.comm);
 
     //Allocate the arrays
     Kokkos::View<double**> U ("Solution U on device", size_x, size_y);
