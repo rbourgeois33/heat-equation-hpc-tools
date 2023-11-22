@@ -2,9 +2,9 @@
 #SBATCH --job-name=out_heat
 #SBATCH --output=%x.o%j
 #SBATCH --time=00:10:00
-#SBATCH --ntasks=9
+#SBATCH --ntasks=12
 #SBATCH --nodes=1
-#SBATCH --ntasks-per-node=9
+#SBATCH --ntasks-per-node=12
 #SBATCH --cpus-per-task=1
 #SBATCH --partition=cpu_short     # (see available partitions)
 
