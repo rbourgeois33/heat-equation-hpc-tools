@@ -76,11 +76,12 @@ void MPIBoundaryCondition(Kokkos::View<double**>& U, MPI_DECOMPOSITION& mpi_deco
 }
 
 //Write U on disk through PDI
-void write_solution_to_file(const  Kokkos::View<double**, Kokkos::LayoutRight, Kokkos::HostSpace>& U_IO, const Kokkos::View<double**>& U, int& nwrite, double time)
+void write_solution_to_file(const Kokkos::View<double**>::HostMirror& U_host, const Kokkos::View<double**, Kokkos::LayoutRight, Kokkos::HostSpace>& U_IO, const Kokkos::View<double**>& U, int& nwrite, double time)
 {   
     // Copy the view to the host mirror
-    // The deepcopy handles the transpose automatically if U and U'IO layouts are differents
-    Kokkos::deep_copy(U_IO, U);
+    Kokkos::deep_copy(U_host, U);
+    //Transpose via deepcopy if U and U'IO layouts are differents
+    Kokkos::deep_copy(U_IO, U_host);
 
     // Expose the solution
     PDI_multi_expose("write_data",
@@ -209,7 +210,7 @@ void heat_equation(int argc, char* argv[], const MPI_Comm main_comm, const PC_tr
     int nwrite = 0;
 
     //write initial condition
-    write_solution_to_file(U_IO, U, nwrite, time);
+    write_solution_to_file(U_host, U_IO, U, nwrite, time);
 
     //Loop over the time steps
     Kokkos::Timer timer;
@@ -246,14 +247,14 @@ void heat_equation(int argc, char* argv[], const MPI_Comm main_comm, const PC_tr
         //Write solution every 10% of progression
         if (nstep % freq_write == 0)
         {
-            write_solution_to_file(U_IO, U, nwrite, time);
+            write_solution_to_file(U_host, U_IO, U, nwrite, time);
         }
 
     }
     double elapsed_time = timer.seconds();
 
     //Write solution
-    write_solution_to_file(U_IO, U, nwrite, time);
+    write_solution_to_file(U_host, U_IO, U, nwrite, time);
 
     //print info and reason for stopping
     if (mpi_rank==0)
