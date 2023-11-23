@@ -10,6 +10,7 @@ struct Coordinates {
 
 class MPI_DECOMPOSITION {
 public:
+    
     int rank; // MPI rank
     int size; // MPI size
     Coordinates max_coords; // Maximum ranks in X and Y dimensions
@@ -35,6 +36,7 @@ public:
     int down = 1;
 
     MPI_DECOMPOSITION(int rank_, int size_, Coordinates max_coords_, MPI_Comm comm_, int nx_, int ny_) {
+        
         rank = rank_;
         size = size_;
         max_coords = max_coords_;
@@ -62,15 +64,18 @@ public:
     }
 
     void computeCoords() {
+        
         coords.x = rank / max_coords.y;
         coords.y = rank % max_coords.y;
     }
 
     int coordsToRank(const Coordinates& coords) {
-        return coords.x * max_coords.y + coords.y;
+        r
+        eturn coords.x * max_coords.y + coords.y;
     }
 
     void computeNeighborRanks() {
+        
         const Coordinates right{(coords.x + 1) % max_coords.x, coords.y};
         right_rank = coordsToRank(right);
 
@@ -85,11 +90,13 @@ public:
     }
 
 void printDetails() {
+        
         printf("Rank: %d, Coordinates: (%d, %d), Neighbors - Right: %d, Left: %d, Bottom: %d, Top: %d\n", 
                rank, coords.x, coords.y, right_rank, left_rank, bottom_rank, top_rank);
     }
 
     void send_recv_buffers(int direction) {
+        
         int send_rank_x = direction == up ? top_rank : bottom_rank;
         int recv_rank_x = direction == up ? bottom_rank : top_rank;
 
@@ -117,6 +124,7 @@ void printDetails() {
     }
 
     void fill_buffers_from_U(Kokkos::View<double**>& U, int direction) {
+        
         int n_extract_y = direction == up ? ny : 1;
         int n_extract_x = direction == up ? nx : 1;
 
@@ -139,6 +147,7 @@ void printDetails() {
     }
 
     void fill_U_from_buffers(Kokkos::View<double**>& U, int direction) {
+        
         int n_fill_y = direction == up ? 0 : ny + 1;
         int n_fill_x = direction == up ? 0 : nx + 1;
 

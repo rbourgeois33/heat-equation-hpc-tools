@@ -2,12 +2,14 @@
 
 KOKKOS_INLINE_FUNCTION
 double initial_condition(const double x, const double y) {
+    
     const double rmax = 0.2;
     const double r = Kokkos::sqrt((x - 0.5) * (x - 0.5) + (y - 0.5) * (y - 0.5));
     return r < rmax ? 1 : 0;
 }
 
 void Initialisation(Kokkos::View<double**>& U, const double dx, const double dy, const MPI_DECOMPOSITION mpi_decomposition, const Kokkos::MDRangePolicy<Kokkos::Rank<2>> &policy) {
+    
     int nx = mpi_decomposition.nx;
     int ny = mpi_decomposition.ny;
     Coordinates mpi_coords = mpi_decomposition.coords;
@@ -22,6 +24,7 @@ void Initialisation(Kokkos::View<double**>& U, const double dx, const double dy,
 }
 
 void stencil_kernel(Kokkos::View<double**>& U, const Kokkos::View<double**>& U_, const double dx, const double dy, const double dt, const double kappa, const Kokkos::MDRangePolicy<Kokkos::Rank<2>> &policy) {
+    
     Kokkos::parallel_for("heat_equation_kernel", 
                         policy, 
                         KOKKOS_LAMBDA(const int i, const int j) {
@@ -30,6 +33,7 @@ void stencil_kernel(Kokkos::View<double**>& U, const Kokkos::View<double**>& U_,
 }
 
 void print_perf(const double elapsed_time, const int nx, const int ny, const int nstep) {
+    
     int num_threads = Kokkos::DefaultExecutionSpace::concurrency();
     double MCellUpdate = double(nx) * double(ny) * double(nstep) / 1e6;
     double MCellUpdatePerSec = MCellUpdate / elapsed_time;
@@ -37,6 +41,7 @@ void print_perf(const double elapsed_time, const int nx, const int ny, const int
 }
 
 void MPIBoundaryCondition(Kokkos::View<double**>& U, MPI_DECOMPOSITION& mpi_decomposition) {
+    
     mpi_decomposition.fill_buffers_from_U(U, mpi_decomposition.up);
     mpi_decomposition.send_recv_buffers(mpi_decomposition.up);
     mpi_decomposition.fill_U_from_buffers(U, mpi_decomposition.up);
@@ -47,40 +52,56 @@ void MPIBoundaryCondition(Kokkos::View<double**>& U, MPI_DECOMPOSITION& mpi_deco
 }
 
 void write_solution_to_file(const Kokkos::View<double**>::HostMirror& U_host, const Kokkos::View<double**, Kokkos::LayoutRight, Kokkos::HostSpace>& U_IO, const Kokkos::View<double**>& U, int& nwrite, double time) {
+    
     // Copy the view to the host mirror
     Kokkos::deep_copy(U_host, U);
     //Transpose via deepcopy if U and U'IO layouts are differents
     Kokkos::deep_copy(U_IO, U_host);
 
+    // Expose the solution
     PDI_multi_expose("write_data",
-                     "nwrite", &nwrite, PDI_OUT,
-                     "time", &time, PDI_OUT,
-                     "main_field", U_IO.data(), PDI_OUT,
-  
+                    "nwrite", &nwrite, PDI_OUT,
+                    "time", &time, PDI_OUT,
+                    "main_field", U_IO.data(), PDI_OUT,
+                    NULL);
+    
+    //Increment writing counter
+    nwrite=nwrite+1;
 }
 
-void heat_equation(int argc, char* argv[], const MPI_Comm main_comm, const PC_tree_t conf) {
-    // Tunable parameters
+void heat_equation(int argc, char* argv[], const MPI_Comm main_comm, const PC_tree_t conf) {    
+    
+    //Domain lenght, final time and diffusion coefficient 
     const double Lx = 1.0, Ly = 1.0, Tend = 1, kappa = 0.1;
+
+    //CFL number
     const double cfl = 0.9;
+
+    //Resolution per MPI sub-domain
     const int nx = 128, ny = 128;
+
+    //MPI cartesian decomposition
     Coordinates mpi_max_coords = {2, 2};
+
+    //Max number of iteration
     const int nmax = 9999999;
 
-    // Untunable parameters
+    //Don't change parameters from here (they are deduced)
+
+    //Total resolution
     const int Nx = nx * mpi_max_coords.x, Ny = ny * mpi_max_coords.y;
+
+    //Space step and time step computed from CFL condition
     const double dx = Lx / Nx, dy = Ly / Ny;
     const double inv_dt_x = 1.0 / (0.5 * dx * dx / kappa), inv_dt_y = 1.0 / (0.5 * dy * dy / kappa);
-    double dt = cfl / (inv_dt_x + inv_dt_y); // Not const for time adjustment, but constant CFL
+    double dt = cfl / (inv_dt_x + inv_dt_y);
+    
+    //Writing frequency
     const int freq_write = std::floor(Tend / (10 * dt));
 
     // Size of the arrays
     const int size_x = nx + 2, size_y = ny + 2;
     const Kokkos::MDRangePolicy<Kokkos::Rank<2>> policy({1, 1}, {nx + 1, ny + 1});
-    
-    // Compute memory required on host and device
-    const int U_mem_size = size_x * size_y * sizeof(double);
-    const int device_mem_size = 2 * U_mem_size, host_mem_size = U_mem_size;
 
     // Get MPI info and compute rank info
     int mpi_rank, mpi_size;
@@ -89,16 +110,29 @@ void heat_equation(int argc, char* argv[], const MPI_Comm main_comm, const PC_tr
     MPI_DECOMPOSITION mpi_decomposition(mpi_rank, mpi_size, mpi_max_coords, main_comm, nx, ny);
 
     // Send meta-data to PDI
-    PDI_multi_expose("init_PDI", "mpi_coords_x", &mpi_decomposition.coords.x, PDI_OUT,
-                     "mpi_coords_y", &mpi_decomposition.coords.y, PDI_OUT,
-                     "mpi_max_coords_x", &mpi_decomposition.max_coords.x, PDI_OUT,
-                     "mpi_max_coords_y", &mpi_decomposition.max_coords.y, PDI_OUT,
-                     "nx", &nx, PDI_OUT, "ny", &ny, PDI_OUT, NULL);
+    PDI_multi_expose("init_PDI", 
+                    "mpi_coords_x", &mpi_decomposition.coords.x, PDI_OUT,
+                    "mpi_coords_y", &mpi_decomposition.coords.y, PDI_OUT,
+                    "mpi_max_coords_x", &mpi_decomposition.max_coords.x, PDI_OUT,
+                    "mpi_max_coords_y", &mpi_decomposition.max_coords.y, PDI_OUT,
+                    "nx", &nx, PDI_OUT,
+                    "ny", &ny, PDI_OUT,
+                    NULL);
 
     // Print simulation information
     if (mpi_rank == 0) {
         Kokkos::print_configuration(std::cout);
-        // Printing simulation details
+        printf("------------ Simulation Information --------------\n");
+        printf("Diffusion coefficient: %f\n", kappa);
+        printf("Cell size: %f\n", dx);
+        printf("Time step: %f\n", dt);
+        printf("Number of cells per proc: %d , %d\n", nx, ny);
+        printf("Total of cells per proc: %d , %d\n", Nx, Ny);
+        printf("Number of iterations: %d\n", nmax);
+        printf("CFL number: %f\n", cfl);
+        printf("Final time: %f\n", Tend);
+        printf("Domain size: %f , %f\n", Lx, Ly);
+        printf("--------------------------------------------------\n");
     }
 
     // Print MPI info

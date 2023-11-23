@@ -12,6 +12,7 @@
 #include "heat_equation.hpp"
 
 int main(int argc, char** argv) {
+    
     // Initialize MPI, PDI and Kokkos
     MPI_Init(&argc, &argv);
     MPI_Comm main_comm = MPI_COMM_WORLD;
