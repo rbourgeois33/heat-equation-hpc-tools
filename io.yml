@@ -3,23 +3,23 @@ pdi:
 
      nx: int #Domain size per proc
      ny: int #Domain size per proc
-     mpi_max_coords_x: int
-     mpi_max_coords_y: int
-     mpi_coords_x: int
-     mpi_coords_y: int
-     time: double
-     nwrite: int
+     mpi_max_coords_x: int #MPI decomposition
+     mpi_max_coords_y: int #MPI decomposition
+     mpi_coords_x: int #MPI coordinate of the current process 
+     mpi_coords_y: int #MPI coordinate of the current process 
+     time: double #Time
+     nwrite: int #Index for naming files
 
 
   data: # type of values for which PDI does not keep a copy
-    main_field: { size: [ '$nx+2', '$ny+2' ], type: array, subtype: double }
+    main_field: { size: [ '$nx+2', '$ny+2' ], type: array, subtype: double } #Field of the current subdmain
   
   plugins:
     mpi:
-    decl_hdf5:
-      file: data_${nwrite:04}.h5
+    decl_hdf5: #Writing in hdf5
+      file: data_${nwrite:04}.h5 #Name of the file
       communicator: $MPI_COMM_WORLD # the MPI communicator used for HDF5 parallel synchronized write
-      datasets: # type of the datasets to create in file
+      datasets: #Dataset we are writing in: the whole solution
         data:
           type: array
           subtype: double
@@ -27,10 +27,10 @@ pdi:
       write:
         main_field: # the name of the data to write
           dataset: data
-          memory_selection:  # exclude ghosts from the data in memory
+          memory_selection:  #exclude ghosts from the data in memory
             size:  ['$nx', '$ny']
             start: [1, 1]
-          dataset_selection: # only write into a single slice in time
+          dataset_selection: #Write in the file at the current MPI process's coordinates
             size:  ['$nx', '$ny']
             start: ['$nx*$mpi_coords_x', '$ny*$mpi_coords_y']
 

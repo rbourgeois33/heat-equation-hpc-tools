@@ -1,4 +1,7 @@
-## Guide adapted from nova++
+## What is this ?
+This miniapp solves the linear heat equation on a 2D cartesian mesh with periodic boundary condition. The main interest of this repository is the use of Kokkos+MPI to handle parallel computing and the Parallel Data Interface library to handle I/O.
+
+## How to compile and run ?
 
 # 0: Clone
 
@@ -24,7 +27,6 @@ cmake -DCMAKE_INSTALL_PREFIX=$PWD/../../install_pdi -DUSE_HDF5=SYSTEM -DBUILD_HD
 
 # Else, just re-load PDI
 * `. path_to_pdi_install/share/pdi/env.bash`
-* `. /gpfs/users/bourgeoisr/expe_heat_equation/heat_equation/vendor/install_pdi/share/pdi/env.bash`
 
 # 3: Create build folder
 * `cd heat_equation/`
@@ -53,5 +55,8 @@ cmake -DCMAKE_INSTALL_PREFIX=$PWD/../../install_pdi -DUSE_HDF5=SYSTEM -DBUILD_HD
 
 # 6: Run the code
 * `Use the slurm scripts in heat_equation/ copied in the build folder to launch jobs`
+
+# 7: See the output
+* `Use plotter.py from your build directory to generate visual outputs`
 
 
