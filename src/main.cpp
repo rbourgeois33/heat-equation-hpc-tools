@@ -8,31 +8,29 @@
 // Include std headers
 #include <iostream>
 
-//Include src headers
+// Include src headers
 #include "heat_equation.hpp"
 
+int main(int argc, char** argv) {
+    // Initialize MPI, PDI and Kokkos
+    MPI_Init(&argc, &argv);
+    MPI_Comm main_comm = MPI_COMM_WORLD;
 
-int main(int argc, char** argv) 
-{
-  // Initialize MPI, PDI and Kokkos
-  MPI_Init(&argc, &argv);
-  MPI_Comm main_comm = MPI_COMM_WORLD;
+    PC_tree_t conf = PC_parse_path("../io.yml"); // Get yml file
+    PDI_init(PC_get(conf, ".pdi"));
 
-  PC_tree_t conf = PC_parse_path("../io.yml"); // Get yml file
-  PDI_init(PC_get(conf, ".pdi"));
+    Kokkos::initialize(argc, argv);
 
-  Kokkos::initialize(argc, argv);
+    // Run simulation
+    heat_equation(argc, argv, main_comm, conf);
 
-  //Run simulation
-  heat_equation(argc, argv, main_comm, conf);
+    // Finalize Kokkos, PDI and MPI
+    Kokkos::finalize();
 
-  //Finalize Kokkos, PDI and MPI
-  Kokkos::finalize();
+    PC_tree_destroy(&conf);
+    PDI_finalize();
 
-  PC_tree_destroy(&conf);
-  PDI_finalize();
+    MPI_Finalize();
 
-  MPI_Finalize();
-
-  return 0;
+    return 0;
 }
