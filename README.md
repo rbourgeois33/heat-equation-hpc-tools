@@ -1,5 +1,5 @@
 ## What is this ?
-This miniapp solves the linear heat equation on a 2D cartesian mesh with periodi bounday condition. The main interest of this repository is the use of Kokkos+MPI to handle parallel computing and the Parallel Data Interface library to handle I/O.
+This miniapp solves the linear heat equation on a 2D cartesian mesh with periodic boundary condition. The main interest of this repository is the use of Kokkos+MPI to handle parallel computing and the Parallel Data Interface library to handle I/O.
 
 ## How to compile and run ?
 

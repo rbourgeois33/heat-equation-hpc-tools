@@ -70,8 +70,8 @@ public:
     }
 
     int coordsToRank(const Coordinates& coords) {
-        r
-        eturn coords.x * max_coords.y + coords.y;
+        
+        return coords.x * max_coords.y + coords.y;
     }
 
     void computeNeighborRanks() {
@@ -133,14 +133,14 @@ void printDetails() {
         Kokkos::parallel_for("fill buffer x from U", 
                             Kokkos::RangePolicy<>(0, nx),
                             KOKKOS_CLASS_LAMBDA(const int i) {
-                                send_buffer_y(i) = U(i + 1, n_extract_y);
-                             });
+                               send_buffer_y(i) = U(i + 1, n_extract_y);
+                            });
 
         Kokkos::parallel_for("fill buffer y from U", 
                             Kokkos::RangePolicy<>(0, ny),
                             KOKKOS_CLASS_LAMBDA(const int j) {
-                                send_buffer_x(j) = U(n_extract_x, j + 1);
-                             });
+                               send_buffer_x(j) = U(n_extract_x, j + 1);
+                            });
 
         Kokkos::fence(); // Ensure the filling is done before continuing
         MPI_Barrier(comm);
@@ -155,13 +155,13 @@ void printDetails() {
         Kokkos::parallel_for("fill U from x buffer",
                             Kokkos::RangePolicy<>(0, nx),
                             KOKKOS_CLASS_LAMBDA(const int i) {
-                                U(i + 1, n_fill_y) = recv_buffer_y(i);
-                             });
+                               U(i + 1, n_fill_y) = recv_buffer_y(i);
+                            });
 
         Kokkos::parallel_for("fill U from y buffer", Kokkos::RangePolicy<>(0, ny),
-                             KOKKOS_CLASS_LAMBDA(const int j) {
-                                U(n_fill_x, j + 1) = recv_buffer_x(j);
-                             });
+                            KOKKOS_CLASS_LAMBDA(const int j) {
+                               U(n_fill_x, j + 1) = recv_buffer_x(j);
+                            });
 
         Kokkos::fence(); // Ensure the filling is done before continuing
         MPI_Barrier(comm);
