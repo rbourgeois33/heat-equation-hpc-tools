@@ -1,29 +1,32 @@
-#include <fstream>
-#include <iostream>
+#include "mpi_decomposition.hpp"
 
 KOKKOS_INLINE_FUNCTION
-double initial_condition(double x, double y)
+double initial_condition(const double x, const double y)
 {
-    //return std::sin(2*M_PI*(x))*std::sin(2*M_PI*(y));
-
     const double rmax=0.2;
-    const double r = sqrt((x-0.5)*(x-0.5)+(y-0.5)*(y-0.5));
+    const double r = Kokkos::sqrt((x-0.5)*(x-0.5)+(y-0.5)*(y-0.5));
     return r<rmax ? 1:0;
-
 }
 
 //Initialize the view U with the initial condition function above
-void Initialisation(Kokkos::View<double**>& U, const double dx, const double dy, const Kokkos::MDRangePolicy<Kokkos::Rank<2>> &policy)
+void Initialisation(Kokkos::View<double**>& U, const double dx, const double dy, const MPI_DECOMPOSITION mpi_decomposition, const Kokkos::MDRangePolicy<Kokkos::Rank<2>> &policy)
 {
+    int nx = mpi_decomposition.nx;
+    int ny = mpi_decomposition.ny;
+    Coordinates mpi_coords = {mpi_decomposition.coords.x, mpi_decomposition.coords.y};
+
     Kokkos::parallel_for
     (
         "Initialisation", 
         policy, 
         KOKKOS_LAMBDA ( const int i , const int j )
         {   
-            double x_i=double(i)*dx;
-            double y_j=double(j)*dy;
-            U(i, j) = initial_condition(x_i, y_j) ;
+            if ((i==1)&&(j==1)) {
+                printf("Rank: %d, (%d, %d), (%d, %d)\n", mpi_decomposition.rank, mpi_decomposition.coords.x, mpi_decomposition.coords.y, nx, ny);
+            }
+            const double x = (i + mpi_coords.x*nx)*dx - 0.5*dx;
+            const double y = (j + mpi_coords.y*ny)*dy - 0.5*dy;
+            U(i, j) = initial_condition(x, y) ;
         }
     );
 }
@@ -55,56 +58,46 @@ void print_perf(const double elapsed_time, const int nx, const int ny, const int
 }
 
 //Apply boundary condition on view U
-void BoundaryCondition(Kokkos::View<double**>& U, const int nx, const int ny)
+void MPIBoundaryCondition(Kokkos::View<double**>& U, MPI_DECOMPOSITION& mpi_decomposition)
 {
-    Kokkos::parallel_for
-    (
-        "BoundaryCondition_i", 
-        Kokkos::RangePolicy<>(1, nx+1), 
-        KOKKOS_LAMBDA ( const int i )
-        {   
-            U(i, 0   ) = U(i, ny);
-            U(i, ny+1) = U(i, 1 );
-        }
-    );
 
-    Kokkos::parallel_for
-    (
-        "BoundaryCondition_j", 
-        Kokkos::RangePolicy<>(1, ny+1), 
-        KOKKOS_LAMBDA ( const int j )
-        {   
-            U(0   , j) = U(ny  , j);
-            U(nx+1, j) = U(1   , j);
-        }
-    );
+    mpi_decomposition.fill_buffers_from_U(U, mpi_decomposition.up);
+
+    mpi_decomposition.send_recv_buffers(mpi_decomposition.up);
+
+    mpi_decomposition.fill_U_from_buffers(U, mpi_decomposition.up);
+
+    mpi_decomposition.fill_buffers_from_U(U, mpi_decomposition.down);
+
+    mpi_decomposition.send_recv_buffers(mpi_decomposition.down);
+
+    mpi_decomposition.fill_U_from_buffers(U, mpi_decomposition.down);
+
 }
 
 //Write U on disk through PDI
-void write_solution_to_file(const Kokkos::View<double**>::HostMirror& U_host, const Kokkos::View<double**>& U, int& nwrite, double time)
+void write_solution_to_file(const Kokkos::View<double**>::HostMirror& U_host, const Kokkos::View<double**, Kokkos::LayoutRight, Kokkos::HostSpace>& U_IO, const Kokkos::View<double**>& U, int& nwrite, double time)
 {   
     // Copy the view to the host mirror
     Kokkos::deep_copy(U_host, U);
+    //Transpose via deepcopy if U and U'IO layouts are differents
+    Kokkos::deep_copy(U_IO, U_host);
 
     // Expose the solution
     PDI_multi_expose("write_data",
                  "nwrite", &nwrite, PDI_OUT,
                  "time", &time, PDI_OUT,
-                 "main_field", U_host.data(), PDI_OUT,
+                 "main_field", U_IO.data(), PDI_OUT,
                   NULL);
-
+    
+    //Increment writing counter
     nwrite=nwrite+1;
-    // Print writing information
-    std::cout << "\n ... " << "Solution written to file" << " ...\n "<<std::endl;
 }
 
 //Main loop
 void heat_equation(int argc, char* argv[], const MPI_Comm main_comm, const PC_tree_t conf)
 {   
-
-    // Get MPI info
-    int mpi_rank; MPI_Comm_rank(main_comm, &mpi_rank);
-    int mpi_size; MPI_Comm_size(main_comm, &mpi_size);
+    /// ---- Tunable parameters ----
 
     //Domain size, final time and diffusion coefficient
     const double Lx = 1.0;
@@ -112,17 +105,26 @@ void heat_equation(int argc, char* argv[], const MPI_Comm main_comm, const PC_tr
     const double Tend = 1;
     const double kappa = 0.1;
 
-    //CFL number, number of cells and max number of iterations
+    //CFL number, number of cells per proc, mpi decomposition and max number of iter
     const double cfl = 0.9;
 
-    const int nx = 256;
-    const int ny = 256;
+    const int nx = 128;
+    const int ny = 128;
+    Coordinates mpi_max_coords;
+    mpi_max_coords.x=2;
+    mpi_max_coords.y=2;
 
-    const int niter = 9999999;
+    const int nmax = 9999999;  
+
+    /// ---- Untunable parameters ----
+
+    //Number of cells in the whole domain
+    const int Nx = nx*mpi_max_coords.x;
+    const int Ny = ny*mpi_max_coords.y;
 
     //Cell size
-    const double dx = Lx/nx;
-    const double dy = Ly/ny;
+    const double dx = Lx/Nx;
+    const double dy = Ly/Ny;
 
     //time step calculated from the diffusion coefficient
     const double inv_dt_x = 1.0/(0.5*dx*dx/kappa);
@@ -133,22 +135,28 @@ void heat_equation(int argc, char* argv[], const MPI_Comm main_comm, const PC_tr
     const int freq_write = std::floor(Tend/(10*dt));
 
     //Size of the arrays
-    const int ngc = 1; 
-    const int size_x = nx + 2*ngc;
-    const int size_y = ny + 2*ngc;
+    const int size_x = nx + 2;
+    const int size_y = ny + 2;
 
     //Policies for looping over the whole solution, skipping ghost cells
-    const Kokkos::MDRangePolicy<Kokkos::Rank<2>> policy({ngc,ngc},{size_x-ngc, size_y-ngc});
+    const Kokkos::MDRangePolicy<Kokkos::Rank<2>> policy({1,1},{nx+1, ny+1});
 
     //Compute memory required on host and device
     const int U_mem_size = size_x*size_y*sizeof(double);
     const int device_mem_size = 2*U_mem_size;
     const int host_mem_size = U_mem_size;
 
-    //Initialize PDI meta-data
+    // Get MPI info and compute rank info (2D index and neighbors, see mpi.hpp)
+    int mpi_rank; MPI_Comm_rank(main_comm, &mpi_rank);
+    int mpi_size; MPI_Comm_size(main_comm, &mpi_size);
+    MPI_DECOMPOSITION mpi_decomposition(mpi_rank, mpi_size, mpi_max_coords, main_comm, nx, ny);
+
+    //Send meta-data to PDI
     PDI_multi_expose("init_PDI",
-                    "mpi_rank", &mpi_rank, PDI_OUT,
-                    "mpi_size", &mpi_size, PDI_OUT,
+                    "mpi_coords_x", &mpi_decomposition.coords.x, PDI_OUT,
+                    "mpi_coords_y", &mpi_decomposition.coords.y, PDI_OUT,
+                    "mpi_max_coords_x", &mpi_decomposition.max_coords.x, PDI_OUT,
+                    "mpi_max_coords_y", &mpi_decomposition.max_coords.y, PDI_OUT,
                     "nx", &nx, PDI_OUT,
                     "ny", &ny, PDI_OUT,
                      NULL);
@@ -157,22 +165,28 @@ void heat_equation(int argc, char* argv[], const MPI_Comm main_comm, const PC_tr
     if (mpi_rank==0)
     {
     Kokkos::print_configuration(std::cout);
-
-    std::cout << "------------ Simulation Information --------------"  << std::endl;
-    std::cout << "Diffusion coefficient: " << kappa << std::endl;
-    std::cout << "Cell size: " << dx << std::endl;
-    std::cout << "Time step: " << dt << std::endl;
-    std::cout << "Number of cells: " << nx << " , "<< ny << std::endl;
-    std::cout << "Number of iterations: " << niter << std::endl;
-    std::cout << "Number of ghost cells: " << ngc << std::endl;
-    std::cout << "CFL number: " << cfl << std::endl;
-    std::cout << "Final time: " << Tend << std::endl;
-    std::cout << "Domain size: " << Lx << " , " << Ly << std::endl;
-    std::cout << "Memory size of U: " << U_mem_size/1e6 << " MB" << std::endl;
-    std::cout << "Allocation on device: " << device_mem_size/1e6 << " MB" << std::endl;
-    std::cout << "Allocation on host: " << host_mem_size/1e6 << " MB" << std::endl;
-    std::cout << "--------------------------------------------------"  << std::endl;
+    printf("------------ Simulation Information --------------\n");
+    printf("Diffusion coefficient: %f\n", kappa);
+    printf("Cell size: %f\n", dx);
+    printf("Time step: %f\n", dt);
+    printf("Number of cells per proc: %d , %d\n", nx, ny);
+    printf("Total of cells per proc: %d , %d\n", Nx, Ny);
+    printf("Number of iterations: %d\n", nmax);
+    printf("CFL number: %f\n", cfl);
+    printf("Final time: %f\n", Tend);
+    printf("Domain size: %f , %f\n", Lx, Ly);
+    printf("Memory size of U, per proc: %f MB\n", U_mem_size / 1e6);
+    printf("Allocation on device, per proc: %f MB\n", device_mem_size / 1e6);
+    printf("Allocation on host, per proc: %f MB\n", host_mem_size / 1e6);
+    printf("--------------------------------------------------\n");
     }
+
+    // Print MPU info (see mpi_decomposition.hpp)
+    Kokkos::fence();
+    MPI_Barrier(mpi_decomposition.comm);
+    mpi_decomposition.printDetails();
+    Kokkos::fence();
+    MPI_Barrier(mpi_decomposition.comm);
 
     //Allocate the arrays
     Kokkos::View<double**> U ("Solution U on device", size_x, size_y);
@@ -181,8 +195,14 @@ void heat_equation(int argc, char* argv[], const MPI_Comm main_comm, const PC_tr
     // Declare mirror array of U on host
     auto U_host = Kokkos::create_mirror(U);
 
+    //Host array with forced layout for compatibility with PDI
+    //PDI can only write from host memory and assumes a right layout
+    //U's default device layout may be left or right depending on the backend
+    //U_host inherits the layout from U
+    Kokkos::View<double**, Kokkos::LayoutRight, Kokkos::HostSpace> U_IO ("I/O array for PDI", size_x, size_y);
+    
     //Initialisation
-    Initialisation(U, dx, dy, policy);
+    Initialisation(U, dx, dy, mpi_decomposition, policy);
 
     //Set time time and indexes to 0
     double time = 0.0;
@@ -190,20 +210,23 @@ void heat_equation(int argc, char* argv[], const MPI_Comm main_comm, const PC_tr
     int nwrite = 0;
 
     //write initial condition
-    write_solution_to_file(U_host, U, nwrite, time);
+    write_solution_to_file(U_host, U_IO, U, nwrite, time);
 
     //Loop over the time steps
     Kokkos::Timer timer;
-    while (time < Tend && nstep < niter)
+    while (time < Tend && nstep < nmax)
     {
+        Kokkos::fence(); // Kokkos kernels are asynchronous. This waits until all kernels are done before continuing
+        MPI_Barrier(mpi_decomposition.comm);
+
         // if t+dt > Tend, reduce dt to reach Tend exactly
         if (time + dt > Tend)
         {
             dt = Tend - time;
         }
 
-        //Fill U's ghost cell with periodic BC
-        BoundaryCondition(U, nx, ny);
+        //Fill U's ghost cell with MPI periodic BC
+        MPIBoundaryCondition(U, mpi_decomposition);
 
         //Copy U's values in U_ to prepare udpate
         Kokkos::deep_copy(U_, U);
@@ -216,22 +239,22 @@ void heat_equation(int argc, char* argv[], const MPI_Comm main_comm, const PC_tr
         nstep = nstep + 1;
 
         //Print progress information
-        if (nstep % 500 == 0)
-        {
+        if (nstep % 500 == 0 && mpi_rank==0)
+        {    
             printf("Time step: %d, Time: %f\n", nstep, time);
         }
 
         //Write solution every 10% of progression
         if (nstep % freq_write == 0)
         {
-            write_solution_to_file(U_host, U, nwrite, time);
+            write_solution_to_file(U_host, U_IO, U, nwrite, time);
         }
 
     }
     double elapsed_time = timer.seconds();
 
     //Write solution
-    write_solution_to_file(U_host, U, nwrite, time);
+    write_solution_to_file(U_host, U_IO, U, nwrite, time);
 
     //print info and reason for stopping
     if (mpi_rank==0)
@@ -240,9 +263,9 @@ void heat_equation(int argc, char* argv[], const MPI_Comm main_comm, const PC_tr
     {
         printf("Simulation finished because time >= Tend\n");
     }
-    else if (nstep >= niter)
+    else if (nstep >= nmax)
     {
-        printf("Simulation finished because nstep >= niter\n");
+        printf("Simulation finished because nstep >= nmax\n");
     }
     printf("Time step: %d, Time: %f\n", nstep, time);
     

@@ -1,12 +1,12 @@
 #!/bin/bash
 #SBATCH --job-name=out_heat
 #SBATCH --output=%x.o%j
-#SBATCH --time=00:01:00
-#SBATCH --ntasks=1
+#SBATCH --time=00:00:30
+#SBATCH --ntasks=4
 #SBATCH --nodes=1
-#SBATCH --ntasks-per-node=1
-#SBATCH --cpus-per-task=10
-#SBATCH --partition=cpu_med       # (see available partitions)
+#SBATCH --ntasks-per-node=4
+#SBATCH --cpus-per-task=1
+#SBATCH --partition=cpu_short     # (see available partitions)
 
 # To clean and to load the same modules at the compilation phases
 module purge
@@ -29,4 +29,4 @@ export OMP_PLACES=threads
 # execution 
 # with 'ntasks' MPI processes
 # with 'cpus-per-task' OpenMP threads per MPI process
-pdirun srun ./my_app ../io.yml
+pdirun srun ./my_app
