@@ -5,7 +5,7 @@ This miniapp is a simple use case of the Kokkos, MPI and PDI libraries for solvi
 - MPI (https://github.com/open-mpi)
 - PDI (https://gitlab.maisondelasimulation.fr/pdidev/pdi)
 
-Kokkos allows to write architecture agnostic kernels (one kernel can compile on both CPUs and GPUs). MPI is used to perform a standard cartesian domain decomposition of the domain. PDI is used to seamlessly couple of the simulation code with the parallel hdf5 library to handle I/O.
+Kokkos allows to write architecture agnostic kernels (one kernel can compile on both CPUs and GPUs). MPI is used to perform a standard cartesian domain decomposition shared among the processes. PDI is used to seamlessly couple of the MPI simulation code with the parallel hdf5 library to handle I/O.
 
 - hdf5 (https://github.com/HDFGroup/hdf5)
 
@@ -17,7 +17,7 @@ Kokkos allows to write architecture agnostic kernels (one kernel can compile on 
 
 * `module load gcc/11.2.0/gcc-4.8.5 hdf5/1.10.7/gcc-11.2.0-openmpi openmpi/4.1.1/gcc-11.2.0 cuda/11.7.0/gcc-11.2.0 cmake/3.21.4/gcc-11.2.0`
 
-Note: cuda is only necessary if compiling for Nvidia GPUs. For AMD GPUs, import HIP. For CPUs, no GPU library is needed.
+Note: Cuda is only necessary if compiling for Nvidia GPUs. For AMD GPUs, import HIP. For CPUs, no GPU library is needed.
 
 ## Load PDI
 ### First compilation ? Compile PDI
@@ -62,4 +62,8 @@ with
 ## Plot the outputs
 * `Use plotter.py from your build directory to generate visual outputs`
 
-
+# File description
+- `src/main.cpp` Initializes Kokkos, MPI and PDI instances and lauch the heat equation resolution.
+- `src/heat_equation.cpp` Standart heat equation solver. Includes the parameters choice (physical and numerical), the initialisation and finite difference Kokkos kernel and the writing of the solution with PDI.
+- `src/mpi_decomposion.hpp` Class that contains all the MPI related routines: 2D cartesian decomposition, neighbors indexes and communications.
+- `io.yml` Descriptive layer for PDI I/O.
