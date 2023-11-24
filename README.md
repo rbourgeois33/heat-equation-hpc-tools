@@ -55,7 +55,7 @@ with
  - `DKokkos_ARCH_X=DKokkos_ENABLE_OPENMP` for OpenMP on CPUs
 
 
-## Compile and code
+## Compile and run code
 * `make -j 16`
 * `Use the slurm scripts in heat_equation/ copied in the build folder and adapted to your computing center to launch jobs`
 
