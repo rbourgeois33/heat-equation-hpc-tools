@@ -34,7 +34,7 @@ cmake -DCMAKE_INSTALL_PREFIX=$PWD/../../install_pdi -DUSE_HDF5=SYSTEM -DBUILD_HD
 * `. ../../install_pdi/share/pdi/env.bash`
 * `cd heat_diffusion/`
 
-Note: this assumes that we are using PDI to handle I/O with the hdf5 library
+Note: this assumes that we are using PDI to handle I/O with the hdf5 library.
 
 ### Else, just re-load PDI
 * `. path_to_pdi_install/share/pdi/env.bash`
@@ -57,7 +57,7 @@ with
 
 ## Compile and run code
 * `make -j 16`
-* `Use the slurm scripts in heat_equation/ copied in the build folder and adapted to your computing center to launch jobs`
+Use the slurm scripts in heat_equation/ copied in the build folder and adapted to your computing center to launch jobs
 
 ## Plot the outputs
 * `Use plotter.py from your build directory to generate visual outputs`
