@@ -51,6 +51,30 @@ void MPIBoundaryCondition(Kokkos::View<double**>& U, MPI_DECOMPOSITION& mpi_deco
     mpi_decomposition.fill_U_from_buffers(U, mpi_decomposition.down);
 }
 
+void compute_total_temperature(const Kokkos::View<double**>& U, const double dx, const double dy, const Kokkos::MDRangePolicy<Kokkos::Rank<2>> &policy, const MPI_DECOMPOSITION& mpi_decomposition) {
+    
+    double local_sum; //Sum local to the current MPI process
+
+    //Compute the local sum
+    // Kokkos::parallel_reduce("total temperature reduction kernel", 
+    //                         policy, 
+    //                         KOKKOS_LAMBDA(const int& i, const int& j, double& lsum) {
+    //                             lsum += U(i, j)*dx*dy;},
+    //                         local_sum
+    // );
+
+    //Wait until the local reduction is over
+    Kokkos::fence();
+    MPI_Barrier(mpi_decomposition.comm);
+    //Reduce the local sums into the global sum
+    double global_sum; 
+
+    MPI_Allreduce(&local_sum, &global_sum, 1, MPI_DOUBLE, MPI_SUM, mpi_decomposition.comm);
+
+    printf("Total sum = %f\n", global_sum/mpi_decomposition.size);
+
+}
+
 void write_solution_to_file(const Kokkos::View<double**>::HostMirror& U_host, const Kokkos::View<double**, Kokkos::LayoutRight, Kokkos::HostSpace>& U_IO, const Kokkos::View<double**>& U, int& nwrite, double time) {
     
     // Copy the view to the host mirror
