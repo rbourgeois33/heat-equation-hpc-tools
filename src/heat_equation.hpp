@@ -8,7 +8,7 @@ double initial_condition(const double x, const double y) {
     return r < rmax ? 1 : 0;
 }
 
-void Initialisation(Kokkos::View<double**>& U, const double dx, const double dy, const MPI_DECOMPOSITION mpi_decomposition, const Kokkos::MDRangePolicy<Kokkos::Rank<2>> &policy) {
+void Initialisation(Kokkos::View<double**>& U, const double dx, const double dy, const MPI_DECOMPOSITION& mpi_decomposition, const Kokkos::MDRangePolicy<Kokkos::Rank<2>> &policy) {
     
     int nx = mpi_decomposition.nx;
     int ny = mpi_decomposition.ny;
@@ -138,10 +138,13 @@ void heat_equation(int argc, char* argv[], const MPI_Comm main_comm, const PC_tr
     // Print MPI info
     mpi_decomposition.printDetails();
 
-    // Allocate the arrays
+    // Allocate the views (Kokkos's arrays)
     Kokkos::View<double**> U("Solution U on device", size_x, size_y);
     Kokkos::View<double**> U_("Intermediate Solution U on device", size_x, size_y);
     auto U_host = Kokkos::create_mirror(U);
+
+    //We force the layout on the view used for I/O for compatibility with the host default layout.
+    //Indeed, the default view on the device may change depending on the backend.
     Kokkos::View<double**, Kokkos::LayoutRight, Kokkos::HostSpace> U_IO("I/O array for PDI", size_x, size_y);
 
     // Initialization

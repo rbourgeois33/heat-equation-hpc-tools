@@ -1,5 +1,5 @@
 # Heat equation 
-This miniapp is a simple use case of the Kokkos, MPI and PDI libraries for solving the linear heat equation on a 2D cartesian mesh with periodic boundary condition. 
+This miniapp is a simple use case of the Kokkos, MPI and PDI libraries for solving the linear heat equation on a 2D cartesian mesh with periodic boundary condition. In particular, it showcases the use of `Kokkos::parallel_for, Kokkos_parallel_reduce` and `PDI_MULTI_EXPOSE`.
 
 - Kokkos (https://github.com/kokkos/kokkos)
 - MPI (https://github.com/open-mpi)
@@ -45,14 +45,17 @@ Note: this assumes that we are using PDI to handle I/O with the hdf5 library.
 * `cd build`
 
 ## Configure cmake 
-* `cmake -DBUILD_TESTING=OFF -DCMAKE_BUILD_TYPE=Release -DKokkos_ENABLE_CUDA=ON -DKokkos_ARCH_X=ON ..`
 
-with
+For CPUs with openMP
+* `cmake -DBUILD_TESTING=OFF -DCMAKE_BUILD_TYPE=Release -DKokkos_ARCH_X=DKokkos_ENABLE_OPENMP ..`
+
+
+For Nvidia GPUs
+* `cmake -DBUILD_TESTING=OFF -DCMAKE_BUILD_TYPE=Release -DKokkos_ENABLE_CUDA=ON -DKokkos_ARCH_X=ON ..`
 
  - `DKokkos_ARCH_X=DKokkos_ARCH_AMPERE80` for Nvidia A100
  - `DKokkos_ARCH_X=DKokkos_ARCH_VOLTA70` for Nvidia V100
  - `DKokkos_ARCH_X=DKokkos_ARCH_PASCAL60` for Nvidia P100
- - `DKokkos_ARCH_X=DKokkos_ENABLE_OPENMP` for OpenMP on CPUs
 
 
 ## Compile and run code
