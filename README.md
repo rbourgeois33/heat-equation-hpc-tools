@@ -57,6 +57,7 @@ with
 
 ## Compile and run code
 * `make -j 16`
+
 Use the slurm scripts in heat_equation/ copied in the build folder and adapted to your computing center to launch jobs
 
 ## Plot the outputs
