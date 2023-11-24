@@ -1,17 +1,26 @@
-## What is this ?
-This miniapp solves the linear heat equation on a 2D cartesian mesh with periodic boundary condition. The main interest of this repository is the use of Kokkos+MPI to handle parallel computing and the Parallel Data Interface library to handle I/O.
+# Heat equation 
+This miniapp is a simple use case of the Kokkos, MPI and PDI libraries for solving the linear heat equation on a 2D cartesian mesh with periodic boundary condition. 
 
-## How to compile and run ?
+- Kokkos (https://github.com/kokkos/kokkos)
+- MPI (https://github.com/open-mpi)
+- PDI (https://gitlab.maisondelasimulation.fr/pdidev/pdi)
 
-# 0: Clone
+Kokkos allows to write architecture agnostic kernels (one kernel can compile on both CPUs and GPUs). MPI is used to perform a standard cartesian domain decomposition of the domain. PDI is used to seamlessly couple of the simulation code with the parallel hdf5 library to handle I/O.
+
+- hdf5 (https://github.com/HDFGroup/hdf5)
+
+## How to get source
 
 * `git clone --recurse-submodules ssh://git@gitlab.erc-atmo.eu:30000/remi.bourgeois/heat_equation.git` `
 
-# 1: Load libraries
+## Necessary modules
 
 * `module load gcc/11.2.0/gcc-4.8.5 hdf5/1.10.7/gcc-11.2.0-openmpi openmpi/4.1.1/gcc-11.2.0 cuda/11.7.0/gcc-11.2.0 cmake/3.21.4/gcc-11.2.0`
 
-# 2: Load PDI, First compilation ever ? Compile PDI
+Note: cuda is only necessary if compiling for Nvidia GPUs. For AMD GPUs, import HIP. For CPUs, no GPU library is needed.
+
+## Load PDI
+### First compilation ? Compile PDI
 
 * `cd heat_equation/vendor/pdi`
 * `mkdir build`
@@ -25,38 +34,32 @@ cmake -DCMAKE_INSTALL_PREFIX=$PWD/../../install_pdi -DUSE_HDF5=SYSTEM -DBUILD_HD
 * `. ../../install_pdi/share/pdi/env.bash`
 * `cd heat_diffusion/`
 
-# Else, just re-load PDI
+Note: this assumes that we are using PDI to handle I/O with the hdf5 library
+
+### Else, just re-load PDI
 * `. path_to_pdi_install/share/pdi/env.bash`
 
-# 3: Create build folder
+## Create build folder
 * `cd heat_equation/`
 * `mkdir build`
 * `cd build`
 
-# 4: Configure cmake 
-# Ruche, A100:
+## Configure cmake 
+* `cmake -DBUILD_TESTING=OFF -DCMAKE_BUILD_TYPE=Release -DKokkos_ENABLE_CUDA=ON -DKokkos_ARCH_X=ON ..`
 
-* `cmake -DBUILD_TESTING=OFF -DCMAKE_BUILD_TYPE=Release -DKokkos_ENABLE_CUDA=ON -DKokkos_ARCH_AMPERE80=ON ..`
+with
 
-# Ruche, V100:
+ - `DKokkos_ARCH_X=DKokkos_ARCH_AMPERE80` for Nvidia A100
+ - `DKokkos_ARCH_X=DKokkos_ARCH_VOLTA70` for Nvidia V100
+ - `DKokkos_ARCH_X=DKokkos_ARCH_PASCAL60` for Nvidia P100
+ - `DKokkos_ARCH_X=DKokkos_ENABLE_OPENMP` for OpenMP on CPUs
 
-* `cmake -DBUILD_TESTING=OFF -DCMAKE_BUILD_TYPE=Release -DKokkos_ENABLE_CUDA=ON -DKokkos_ARCH_VOLTA70=ON ..`
 
-# Ruche, P100:
-
-* `cmake -DBUILD_TESTING=OFF -DCMAKE_BUILD_TYPE=Release -DKokkos_ENABLE_CUDA=ON -DKokkos_ARCH_PASCAL60=ON ..`
-
-# Ruche, CPU, openMP:
-
-* `cmake -DBUILD_TESTING=OFF -DCMAKE_BUILD_TYPE=Release -DKokkos_ENABLE_CUDA=OFF -DKokkos_ENABLE_OPENMP=ON ..`
-
-# 5: Compile code
+## Compile and code
 * `make -j 16`
+* `Use the slurm scripts in heat_equation/ copied in the build folder and adapted to your computing center to launch jobs`
 
-# 6: Run the code
-* `Use the slurm scripts in heat_equation/ copied in the build folder to launch jobs`
-
-# 7: See the output
+## Plot the outputs
 * `Use plotter.py from your build directory to generate visual outputs`
 
 
