@@ -1,5 +1,5 @@
 # Heat equation 
-This miniapp is a simple use case of the Kokkos, MPI and PDI libraries for solving the linear heat equation on a 2D cartesian mesh with periodic boundary condition. In particular, it showcases the use of `Kokkos::parallel_for, Kokkos_parallel_reduce` and `PDI_MULTI_EXPOSE`.
+This miniapp is a simple use case of the Kokkos, MPI and PDI libraries for solving the linear heat equation on a 2D cartesian mesh with periodic boundary condition. In particular, it showcases the use of `Kokkos::parallel_for, Kokkos_parallel_reduce` and `PDI_MULTI_EXPOSE`in a MPI context.
 
 - Kokkos (https://github.com/kokkos/kokkos)
 - MPI (https://github.com/open-mpi)
@@ -34,8 +34,6 @@ cmake -DCMAKE_INSTALL_PREFIX=$PWD/../../install_pdi -DUSE_HDF5=SYSTEM -DBUILD_HD
 * `. ../../install_pdi/share/pdi/env.bash`
 * `cd heat_diffusion/`
 
-Note: this assumes that we are using PDI to handle I/O with the hdf5 library.
-
 ### Else, just re-load PDI
 * `. path_to_pdi_install/share/pdi/env.bash`
 
@@ -46,17 +44,21 @@ Note: this assumes that we are using PDI to handle I/O with the hdf5 library.
 
 ## Configure cmake 
 
-For CPUs with openMP
-* `cmake -DBUILD_TESTING=OFF -DCMAKE_BUILD_TYPE=Release -DKokkos_ARCH_X=DKokkos_ENABLE_OPENMP ..`
+For a single CPU
+* `cmake -DBUILD_TESTING=OFF -DCMAKE_BUILD_TYPE=Release ..`
+
+For CPUs with OpenMP
+* `cmake -DBUILD_TESTING=OFF -DCMAKE_BUILD_TYPE=Release -DKokkos_ENABLE_OPENMP=ON ..`
 
 
 For Nvidia GPUs
 * `cmake -DBUILD_TESTING=OFF -DCMAKE_BUILD_TYPE=Release -DKokkos_ENABLE_CUDA=ON -DKokkos_ARCH_X=ON ..`
 
+with 
+
  - `DKokkos_ARCH_X=DKokkos_ARCH_AMPERE80` for Nvidia A100
  - `DKokkos_ARCH_X=DKokkos_ARCH_VOLTA70` for Nvidia V100
  - `DKokkos_ARCH_X=DKokkos_ARCH_PASCAL60` for Nvidia P100
-
 
 ## Compile and run code
 * `make -j 16`
