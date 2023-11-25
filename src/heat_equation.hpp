@@ -8,7 +8,10 @@ double initial_condition(const double x, const double y) {
     return r < rmax ? 1 : 0;
 }
 
-void Initialisation(Kokkos::View<double**>& U, const double dx, const double dy, const MPI_DECOMPOSITION& mpi_decomposition, const Kokkos::MDRangePolicy<Kokkos::Rank<2>> &policy) {
+void Initialisation(Kokkos::View<double**>& U, 
+                    const double dx, const double dy, 
+                    const MPI_DECOMPOSITION& mpi_decomposition, 
+                    const Kokkos::MDRangePolicy<Kokkos::Rank<2>> &policy) {
     
     int nx = mpi_decomposition.nx;
     int ny = mpi_decomposition.ny;
@@ -23,7 +26,11 @@ void Initialisation(Kokkos::View<double**>& U, const double dx, const double dy,
     });
 }
 
-void stencil_kernel(Kokkos::View<double**>& U, const Kokkos::View<double**>& U_, const double dx, const double dy, const double dt, const double kappa, const Kokkos::MDRangePolicy<Kokkos::Rank<2>> &policy) {
+void stencil_kernel(Kokkos::View<double**>& U, 
+                    const Kokkos::View<double**>& U_, 
+                    const double dx, const double dy, 
+                    const double dt, const double kappa, 
+                    const Kokkos::MDRangePolicy<Kokkos::Rank<2>> &policy) {
     
     Kokkos::parallel_for("heat_equation_kernel", 
                         policy, 
@@ -51,7 +58,37 @@ void MPIBoundaryCondition(Kokkos::View<double**>& U, MPI_DECOMPOSITION& mpi_deco
     mpi_decomposition.fill_U_from_buffers(U, mpi_decomposition.down);
 }
 
-void write_solution_to_file(const Kokkos::View<double**>::HostMirror& U_host, const Kokkos::View<double**, Kokkos::LayoutRight, Kokkos::HostSpace>& U_IO, const Kokkos::View<double**>& U, int& nwrite, double time) {
+double compute_total_temperature(const Kokkos::View<double**>& U, 
+                               const double dx, const double dy, 
+                               const Kokkos::MDRangePolicy<Kokkos::Rank<2>> &policy, 
+                               const MPI_DECOMPOSITION& mpi_decomposition) {
+
+    double local_sum; //Sum local to the current MPI process
+
+    //Compute the local sum
+    Kokkos::parallel_reduce("total temperature reduction kernel", 
+                            policy, 
+                            KOKKOS_LAMBDA(const int& i, const int& j, double& lsum) {
+                                lsum += U(i, j)*dx*dy;},
+                            local_sum //The default Kokkos reduction is the sum
+    );
+
+    //Wait until the local reduction is over
+    Kokkos::fence();
+    //Wait until all MPI processes are synchronized
+    MPI_Barrier(mpi_decomposition.comm);
+    
+    //Reduce the local sums into the global sum
+    double global_sum; 
+    MPI_Allreduce(&local_sum, &global_sum, 1, MPI_DOUBLE, MPI_SUM, mpi_decomposition.comm);
+
+    return global_sum;
+}
+
+void write_solution_to_file(const Kokkos::View<double**>::HostMirror& U_host, 
+                            const Kokkos::View<double**, Kokkos::LayoutRight, Kokkos::HostSpace>& U_IO, 
+                            const Kokkos::View<double**>& U, 
+                            int& nwrite, double time) {
     
     // Copy the view to the host mirror
     Kokkos::deep_copy(U_host, U);
@@ -101,6 +138,8 @@ void heat_equation(int argc, char* argv[], const MPI_Comm main_comm, const PC_tr
 
     // Size of the arrays
     const int size_x = nx + 2, size_y = ny + 2;
+
+    // Policy (you can play around with different policies by changing this !)
     const Kokkos::MDRangePolicy<Kokkos::Rank<2>> policy({1, 1}, {nx + 1, ny + 1});
 
     // Get MPI info and compute rank info
@@ -150,6 +189,9 @@ void heat_equation(int argc, char* argv[], const MPI_Comm main_comm, const PC_tr
     // Initialization
     Initialisation(U, dx, dy, mpi_decomposition, policy);
 
+    // Compute the total temperature to check the conservation
+    double initial_mass=compute_total_temperature(U, dx, dy, policy, mpi_decomposition);
+
     // Set time and indexes to 0
     double time = 0.0;
     int nstep = 0, nwrite = 0;
@@ -191,10 +233,18 @@ void heat_equation(int argc, char* argv[], const MPI_Comm main_comm, const PC_tr
     }
     double elapsed_time = timer.seconds();
 
+    // Compute the total temperature to check the conservation
+    double final_mass=compute_total_temperature(U, dx, dy, policy, mpi_decomposition);
+
     // Final solution write and performance print
     write_solution_to_file(U_host, U_IO, U, nwrite, time);
+
     if (mpi_rank == 0) {
         // Final simulation status and performance details
         print_perf(elapsed_time, nx, ny, nstep);
+
+        // Conservation check 
+        double mass_change = fabs(initial_mass-final_mass);
+        printf("Initial mass: %f, change in mass: %.10e (should be close to 0)", initial_mass, mass_change);
     }
 }
