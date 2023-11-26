@@ -118,6 +118,7 @@ void heat_equation(int argc, char* argv[], const MPI_Comm main_comm, const PC_tr
     const int nx = 128, ny = 128;
 
     //MPI cartesian decomposition
+    //The GIF in the Readme file shows a 4x3 decomposition 
     Coordinates mpi_max_coords = {2, 2};
 
     //Max number of iteration
