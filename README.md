@@ -9,6 +9,11 @@ Kokkos allows to write architecture agnostic kernels (one kernel can compile on 
 
 - hdf5 (https://github.com/HDFGroup/hdf5)
 
+# Parallel strategy
+
+![](https://github.com/rbourgeois33/heat-equation-hpc-tools/gif.gif)
+
+
 ## How to get source
 
 * `git clone --recurse-submodules https://github.com/rbourgeois33/heat-equation-hpc-tools.git`
