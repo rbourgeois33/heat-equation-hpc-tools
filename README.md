@@ -11,7 +11,7 @@ Kokkos allows to write architecture agnostic kernels (one kernel can compile on 
 
 ## How to get source
 
-* `git clone --recurse-submodules ssh://git@gitlab.erc-atmo.eu:30000/remi.bourgeois/heat_equation.git` `
+* `git clone --recurse-submodules https://github.com/rbourgeois33/heat-equation-hpc-tools.git`
 
 ## Necessary modules
 
