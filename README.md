@@ -11,8 +11,8 @@ Kokkos allows to write architecture agnostic kernels (one kernel can compile on 
 
 # Parallel strategy
 
-![](https://github.com/rbourgeois33/heat-equation-hpc-tools/gif.gif)
-![Alt Text](https://media.giphy.com/media/vFKqnCdLPNOKc/giphy.gif)
+![](https://github.com/rbourgeois33/heat-equation-hpc-tools/blob/main/gif.gif)
+
 
 ## How to get source
 
