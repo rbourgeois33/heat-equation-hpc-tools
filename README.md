@@ -27,9 +27,9 @@ Note: Cuda is only necessary if compiling for Nvidia GPUs. For AMD GPUs, import 
 ## Load PDI
 ### First compilation ? Compile PDI
 
-* `cd heat_equation/vendor/pdi`
-* `mkdir build`
-* `cd build`
+* `cd heat-equation-hpc-tools/`
+* `cd vendor/pdi`
+* `mkdir build; cd build`
 ```
 cmake -DCMAKE_INSTALL_PREFIX=$PWD/../../install_pdi -DUSE_HDF5=SYSTEM -DBUILD_HDF5_PARALLEL=ON  -DUSE_yaml=EMBEDDED -DUSE_paraconf=EMBEDDED -DBUILD_SHARED_LIBS=ON -DBUILD_FORTRAN=OFF -DBUILD_BENCHMARKING=OFF -DBUILD_SET_VALUE_PLUGIN=OFF -DBUILD_TESTING=OFF -DBUILD_DECL_NETCDF_PLUGIN=OFF -DBUILD_USER_CODE_PLUGIN=OFF ..
 ```
@@ -37,13 +37,13 @@ cmake -DCMAKE_INSTALL_PREFIX=$PWD/../../install_pdi -DUSE_HDF5=SYSTEM -DBUILD_HD
 * `make install`
 * `unset PDI_DIR`
 * `. ../../install_pdi/share/pdi/env.bash`
-* `cd heat_diffusion/`
 
 ### Else, just re-load PDI
 * `. path_to_pdi_install/share/pdi/env.bash`
 
 ## Create build folder
-* `cd heat_equation/`
+
+* `cd heat-equation-hpc-tools/`
 * `mkdir build`
 * `cd build`
 
