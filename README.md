@@ -12,7 +12,7 @@ Kokkos allows to write architecture agnostic kernels (one kernel can compile on 
 # Parallel strategy
 
 <img src="https://github.com/rbourgeois33/heat-equation-hpc-tools/blob/main/gif.gif" width="250" height="200">
-
+The computational domain is divided into multiple subdomains (black lines), each managed by a distinct MPI (Message Passing Interface) process. These MPI processes are responsible for their respective subdomains and communicate with adjacent processes. Within each process, parallelism is handled by Kokkos, enabling the use of OpenMP/Cuda/HIP. Additionally, each MPI process writes the data of its subdomain to the output file using the Parallel Data Interface (PDI).
 
 ## How to get source
 
