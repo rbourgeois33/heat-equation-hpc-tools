@@ -70,6 +70,6 @@ Use the slurm scripts in heat_equation/ copied in the build folder and adapted t
 
 # File description
 - `src/main.cpp` Initializes Kokkos, MPI and PDI instances and lauch the heat equation resolution.
-- `src/heat_equation.cpp` Standart heat equation solver. Includes the parameters choice (physical and numerical), the initialisation, finite difference Kokkos kernel and the writing of the solution with PDI.
+- `src/heat_equation.cpp` Standart heat equation solver. Includes the parameters choice (physical and numerical), Kokkos kernels for initialisation, finite difference update and reduction as well as the writing of the solution with PDI.
 - `src/mpi_decomposion.hpp` Class that contains all the MPI related routines: 2D cartesian decomposition, neighbors indexes and communications.
 - `io.yml` Descriptive layer for PDI I/O.
