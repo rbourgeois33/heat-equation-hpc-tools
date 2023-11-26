@@ -39,12 +39,12 @@ void stencil_kernel(Kokkos::View<double**>& U,
     });
 }
 
-void print_perf(const double elapsed_time, const int nx, const int ny, const int nstep) {
+void print_perf(const double elapsed_time, const int Nx, const int Ny, const int nstep) {
     
     int num_threads = Kokkos::DefaultExecutionSpace::concurrency();
-    double MCellUpdate = double(nx) * double(ny) * double(nstep) / 1e6;
-    double MCellUpdatePerSec = MCellUpdate / elapsed_time;
-    printf("Elapsed time: %f\nNumber of threads: %d\nMCell update per second: %f\n\n", elapsed_time, num_threads, MCellUpdatePerSec);
+    double GCellUpdate = double(Nx) * double(Ny) * double(nstep) / 1e9;
+    double GCellUpdatePerSec = GCellUpdate / elapsed_time;
+    printf("Elapsed time: %f\nNumber of threads: %d\nGiga-Cells update per second: %f\n\n", elapsed_time, num_threads, GCellUpdatePerSec);
 }
 
 void MPIBoundaryCondition(Kokkos::View<double**>& U, MPI_DECOMPOSITION& mpi_decomposition) {
@@ -241,7 +241,7 @@ void heat_equation(int argc, char* argv[], const MPI_Comm main_comm, const PC_tr
 
     if (mpi_rank == 0) {
         // Final simulation status and performance details
-        print_perf(elapsed_time, nx, ny, nstep);
+        print_perf(elapsed_time, Nx, Ny, nstep);
 
         // Conservation check 
         double mass_change = fabs(initial_mass-final_mass);
