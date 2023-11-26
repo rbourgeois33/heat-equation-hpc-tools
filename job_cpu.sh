@@ -10,7 +10,7 @@
 
 # To clean and to load the same modules at the compilation phases
 module purge
-module load gcc/11.2.0/gcc-4.8.5 hdf5/1.10.7/gcc-11.2.0-openmpi openmpi/4.1.1/gcc-11.2.0 cuda/11.7.0/gcc-11.2.0 cmake/3.21.4/gcc-11.2.0
+module load gcc/11.2.0/gcc-4.8.5 hdf5/1.10.7/gcc-11.2.0-openmpi openmpi/4.1.1/gcc-11.2.0 cmake/3.21.4/gcc-11.2.0
 . path_to_pdi_install/share/pdi/env.bash
 
 # echo of commands
