@@ -1,4 +1,4 @@
-# Heat Equation solved with HPC tools
+# Heat Equation solved with HPC tools 
 This miniapp is a simple use case of the Kokkos, MPI and PDI libraries for solving the linear heat equation on a 2D cartesian mesh with periodic boundary condition. In particular, it showcases the use of `Kokkos::parallel_for, Kokkos::parallel_reduce` and `PDI_MULTI_EXPOSE`in a MPI context.
 
 - Kokkos (https://github.com/kokkos/kokkos)
