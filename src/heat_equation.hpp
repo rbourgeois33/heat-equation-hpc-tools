@@ -141,6 +141,8 @@ void heat_equation(int argc, char* argv[], const MPI_Comm main_comm, const PC_tr
     const int size_x = nx + 2, size_y = ny + 2;
 
     // Policy (you can play around with different policies by changing this !)
+    // The loop is defined over the inner domain (skipping ghost cells)
+    // The end index corresponds to an open interval, with closed notation, we browse [1,nx] 
     const Kokkos::MDRangePolicy<Kokkos::Rank<2>> policy({1, 1}, {nx + 1, ny + 1});
 
     // Get MPI info and compute rank info
