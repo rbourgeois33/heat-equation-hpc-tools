@@ -14,6 +14,7 @@
 int main(int argc, char** argv) {
     
     // Initialize MPI, PDI and Kokkos
+    // PDI and Kokkos's initializations can be swapped, but MPI MUST be initialized first
     MPI_Init(&argc, &argv);
     MPI_Comm main_comm = MPI_COMM_WORLD;
 
