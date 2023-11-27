@@ -49,14 +49,13 @@ cmake -DCMAKE_INSTALL_PREFIX=$PWD/../../install_pdi -DUSE_HDF5=SYSTEM -DBUILD_HD
 
 ## Configure cmake 
 
-For a single CPU
+For a single CPU per MPI process
 * `cmake -DBUILD_TESTING=OFF -DCMAKE_BUILD_TYPE=Release ..`
 
-For CPUs with OpenMP
+For several CPUs per MPI process with OpenMP
 * `cmake -DBUILD_TESTING=OFF -DCMAKE_BUILD_TYPE=Release -DKokkos_ENABLE_OPENMP=ON ..`
 
-
-For Nvidia GPUs
+For a Nvidia GPU per MPI process
 * `cmake -DBUILD_TESTING=OFF -DCMAKE_BUILD_TYPE=Release -DKokkos_ENABLE_CUDA=ON -DKokkos_ARCH_X=ON ..`
 
 with 
