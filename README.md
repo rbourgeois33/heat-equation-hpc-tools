@@ -83,3 +83,6 @@ Use the slurm scripts in heat_equation/ copied in the build folder and adapted t
 - Kokkos+MPI implementation, by the Kokkos team (https://github.com/kokkos/kokkos-tutorials/tree/main/Exercises/mpi_heat_conduction/Solution)
 - PDI implementation, by the PDI team (https://gitlab.maisondelasimulation.fr/pdidev/pdi/-/tree/master/example)
 
+# Special thanks
+
+Aymeric Millan, Thomas Padioleau, Julien Bigot
