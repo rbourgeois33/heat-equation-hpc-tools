@@ -35,7 +35,9 @@ void stencil_kernel(Kokkos::View<double**>& U,
     Kokkos::parallel_for("heat_equation_kernel", 
                         policy, 
                         KOKKOS_LAMBDA(const int i, const int j) {
-                            U(i, j) = U_(i, j) + dt * kappa * ((U_(i + 1, j) - 2.0 * U_(i, j) + U_(i - 1, j)) / (dx * dx) + (U_(i, j + 1) - 2.0 * U_(i, j) + U_(i, j - 1)) / (dy * dy));
+                            U(i, j) = U_(i, j) + dt * kappa * (
+                            (U_(i + 1, j) - 2.0 * U_(i, j) + U_(i - 1, j)) / (dx * dx) + 
+                            (U_(i, j + 1) - 2.0 * U_(i, j) + U_(i, j - 1)) / (dy * dy));
     });
 }
 
